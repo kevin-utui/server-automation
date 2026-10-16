@@ -1,0 +1,30 @@
+# Sensitive credentials
+*.pem
+*.key
+*.p12
+*.pfx
+vault-password*
+.secrets/
+
+# SSH private keys
+id_rsa
+id_ed25519
+id_ecdsa
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Ansible temporary files
+*.retry
+
+# Editor and operating system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Generated reports
+reports/*
+!reports/.gitkeep
