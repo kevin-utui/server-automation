@@ -1,0 +1,19 @@
+---
+- name: Validate Server Automation Lab
+  hosts: all
+  gather_facts: true
+  become: false
+
+  tasks:
+    - name: Confirm Ansible connectivity
+      ansible.builtin.ping:
+      register: ping_result
+
+    - name: Display server identity
+      ansible.builtin.debug:
+        msg:
+          - "Inventory hostname: {{ inventory_hostname }}"
+          - "Operating system: {{ ansible_facts['distribution'] }}"
+          - "OS version: {{ ansible_facts['distribution_version'] }}"
+          - "Python interpreter: {{ ansible_facts['python']['executable'] }}"
+          - "Connectivity: {{ ping_result['ping'] }}"
