@@ -1,0 +1,3 @@
+---
+# Variables for database servers
+server_role: "database"

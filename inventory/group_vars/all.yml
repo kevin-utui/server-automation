@@ -1,0 +1,5 @@
+---
+# Variables shared by all managed servers
+lab_environment: "development"
+automation_project: "server-automation"
+managed_by_ansible: true

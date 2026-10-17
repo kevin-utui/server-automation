@@ -9,10 +9,14 @@
       ansible.builtin.ping:
       register: ping_result
 
-    - name: Display server identity
+    - name: Display server identity and configuration
       ansible.builtin.debug:
         msg:
           - "Inventory hostname: {{ inventory_hostname }}"
+          - "Server role: {{ server_role }}"
+          - "Lab environment: {{ lab_environment }}"
+          - "Automation project: {{ automation_project }}"
+          - "Managed by Ansible: {{ managed_by_ansible }}"
           - "Operating system: {{ ansible_facts['distribution'] }}"
           - "OS version: {{ ansible_facts['distribution_version'] }}"
           - "Python interpreter: {{ ansible_facts['python']['executable'] }}"
