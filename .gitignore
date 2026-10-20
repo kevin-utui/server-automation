@@ -28,3 +28,6 @@ Thumbs.db
 # Generated reports
 reports/*
 !reports/.gitkeep
+
+# Local Ansible Vault password file
+.vault_pass

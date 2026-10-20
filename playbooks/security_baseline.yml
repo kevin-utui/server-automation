@@ -1,0 +1,91 @@
+---
+- name: Collect Server Automation Lab Security Baseline
+  hosts: all
+  gather_facts: true
+  become: true
+
+  tasks:
+    - name: Report operating system and kernel
+      ansible.builtin.debug:
+        msg:
+          - "Host: {{ inventory_hostname }}"
+          - "Operating system: {{ ansible_facts['distribution'] }}"
+          - "OS version: {{ ansible_facts['distribution_version'] }}"
+          - "Kernel: {{ ansible_facts['kernel'] }}"
+          - "Python: {{ ansible_facts['python']['executable'] }}"
+
+    - name: Check SSH service state
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-active
+          - ssh
+      register: ssh_service
+      changed_when: false
+      failed_when: false
+
+    - name: Check UFW service state
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-active
+          - ufw
+      register: ufw_service
+      changed_when: false
+      failed_when: false
+
+    - name: Check nftables service state
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-active
+          - nftables
+      register: nftables_service
+      changed_when: false
+      failed_when: false
+
+    - name: Collect UFW firewall status and rules
+      ansible.builtin.command:
+        argv:
+          - ufw
+          - status
+          - verbose
+      register: ufw_rules
+      changed_when: false
+      failed_when: false
+
+    - name: Read effective SSH security settings
+      ansible.builtin.shell: |
+        set -o pipefail
+        /usr/sbin/sshd -T |
+          grep -E '^(permitrootlogin|passwordauthentication|pubkeyauthentication|permitemptypasswords|x11forwarding) '
+      args:
+        executable: /bin/bash
+      register: ssh_settings
+      changed_when: false
+      failed_when: false
+
+    - name: Count available package updates
+      ansible.builtin.shell: |
+        apt list --upgradable 2>/dev/null |
+          tail -n +2 |
+          wc -l
+      args:
+        executable: /bin/bash
+      register: package_updates
+      changed_when: false
+      failed_when: false
+
+    - name: Display security baseline results
+      ansible.builtin.debug:
+        msg:
+          - "Host: {{ inventory_hostname }}"
+          - "SSH service: {{ ssh_service.stdout | default('') | trim }} (rc={{ ssh_service.rc | default('unknown') }})"
+          - "UFW service: {{ ufw_service.stdout | default('') | trim }} (rc={{ ufw_service.rc | default('unknown') }})"
+          - "nftables service: {{ nftables_service.stdout | default('') | trim }} (rc={{ nftables_service.rc | default('unknown') }})"
+          - "UFW status and rules: {{ ufw_rules.stdout | default('Not verified') }}"
+          - "UFW command errors: {{ ufw_rules.stderr | default('') | trim }}"
+          - "Effective SSH settings: {{ ssh_settings.stdout_lines | default([]) }}"
+          - "SSH check errors: {{ ssh_settings.stderr | default('') | trim }}"
+          - "SSH check return code: {{ ssh_settings.rc | default('unknown') }}"
+          - "Available package updates: {{ package_updates.stdout | default('unknown') | trim }}"
