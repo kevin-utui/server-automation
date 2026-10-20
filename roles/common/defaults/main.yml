@@ -1,0 +1,20 @@
+---
+# Common operating-system baseline
+
+common_timezone: Africa/Maputo
+
+common_base_packages:
+  - curl
+  - ca-certificates
+  - gnupg
+  - rsync
+  - git
+  - vim
+  - htop
+  - lsof
+  - tcpdump
+  - dnsutils
+  - chrony
+
+common_manage_timezone: true
+common_manage_chrony: true
