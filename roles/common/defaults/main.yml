@@ -18,3 +18,18 @@ common_base_packages:
 
 common_manage_timezone: true
 common_manage_chrony: true
+
+# Automated security updates
+common_manage_security_updates: true
+
+common_security_update_packages:
+  - unattended-upgrades
+  - apt-listchanges
+  - needrestart
+
+common_apt_periodic_config: |
+  APT::Periodic::Update-Package-Lists "1";
+  APT::Periodic::Unattended-Upgrade "1";
+
+# Keep unattended reboot and service restart behaviour conservative.
+common_needrestart_restart_mode: "l"

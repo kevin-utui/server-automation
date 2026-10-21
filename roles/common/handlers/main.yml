@@ -1,2 +1,9 @@
 ---
-# handlers file for roles/common
+- name: Validate unattended-upgrades configuration
+  ansible.builtin.command:
+    argv:
+      - unattended-upgrade
+      - --dry-run
+      - --debug
+  changed_when: false
+  become: true
