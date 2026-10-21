@@ -1,0 +1,71 @@
+---
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == "Ubuntu"
+      - ansible_distribution_version is version("24.04", ">=")
+    fail_msg: "This PostgreSQL role currently supports Ubuntu 24.04 and newer."
+
+- name: Install PostgreSQL packages
+  ansible.builtin.apt:
+    name: "{{ postgresql_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Check whether PostgreSQL configuration directory exists
+  ansible.builtin.stat:
+    path: /etc/postgresql
+  register: postgresql_config_directory
+
+- name: Discover PostgreSQL configuration files
+  ansible.builtin.find:
+    paths: /etc/postgresql
+    patterns:
+      - postgresql.conf
+      - pg_hba.conf
+    recurse: true
+    file_type: file
+  register: postgresql_config_files
+  when: postgresql_config_directory.stat.isdir | default(false)
+
+- name: Identify the PostgreSQL main configuration
+  ansible.builtin.set_fact:
+    postgresql_main_config: >-
+      {{
+        postgresql_config_files.files
+        | default([])
+        | selectattr('path', 'search', '/postgresql\.conf$')
+        | map(attribute='path')
+        | first
+        | default('')
+      }}
+
+- name: Require a discovered PostgreSQL configuration outside check mode
+  ansible.builtin.assert:
+    that:
+      - postgresql_main_config | length > 0
+    fail_msg: "No PostgreSQL main configuration file was found under /etc/postgresql."
+  when: not ansible_check_mode
+
+- name: Configure PostgreSQL listening addresses
+  ansible.builtin.lineinfile:
+    path: "{{ postgresql_main_config }}"
+    regexp: '^\s*#?\s*listen_addresses\s*='
+    line: "listen_addresses = '{{ postgresql_listen_addresses }}'"
+  notify: Restart PostgreSQL
+  when: postgresql_main_config | length > 0
+
+- name: Configure slow query logging threshold
+  ansible.builtin.lineinfile:
+    path: "{{ postgresql_main_config }}"
+    regexp: '^\s*#?\s*log_min_duration_statement\s*='
+    line: "log_min_duration_statement = {{ postgresql_log_min_duration_statement }}"
+  notify: Restart PostgreSQL
+  when: postgresql_main_config | length > 0
+
+- name: Enable and start PostgreSQL
+  ansible.builtin.service:
+    name: "{{ postgresql_service_name }}"
+    enabled: true
+    state: started

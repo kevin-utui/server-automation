@@ -1,0 +1,14 @@
+---
+# PostgreSQL role defaults for Ubuntu Server 24.04.
+
+postgresql_packages:
+  - postgresql
+  - postgresql-contrib
+
+postgresql_service_name: postgresql
+
+# Do not expose PostgreSQL to the network until client access is approved.
+postgresql_listen_addresses: "localhost"
+
+# Log SQL statements taking at least this many milliseconds.
+postgresql_log_min_duration_statement: 1000

@@ -1,0 +1,24 @@
+---
+- name: Configure database servers
+  hosts: databases
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Validate selected database engine
+      ansible.builtin.assert:
+        that:
+          - db_engine is defined
+          - db_engine in ['mariadb', 'mysql', 'postgresql']
+        fail_msg: >-
+          Set db_engine to one of: mariadb, mysql, postgresql.
+        success_msg: "Database engine selection is valid."
+
+    - name: Include selected database engine role
+      ansible.builtin.include_role:
+        name: "{{ db_engine }}"
+
+    - name: Include Redis role when enabled
+      ansible.builtin.include_role:
+        name: redis
+      when: db_redis_enabled | default(false) | bool

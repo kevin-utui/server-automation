@@ -1,3 +1,10 @@
 ---
 # Variables for database servers
 server_role: "database"
+
+# Database engine selection for this lab host.
+# Supported values: mariadb, mysql, postgresql.
+db_engine: postgresql
+
+# Redis is optional and independently managed.
+db_redis_enabled: false
