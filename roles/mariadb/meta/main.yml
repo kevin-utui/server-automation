@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  role_name: mariadb
+  author: Server Automation Lab
+  description: Install and configure MariaDB on Ubuntu database servers.
+  license: MIT
+  min_ansible_version: "2.16"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+  galaxy_tags:
+    - database
+    - mariadb
+    - security
+
+dependencies: []
