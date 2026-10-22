@@ -1,0 +1,3 @@
+---
+ansible_user: mariadbserver
+ansible_become_password: "{{ vault_mariadbserver_become_password }}"
