@@ -4,6 +4,7 @@
 postgresql_packages:
   - postgresql
   - postgresql-contrib
+  - python3-psycopg2
 
 postgresql_service_name: postgresql
 
@@ -12,3 +13,9 @@ postgresql_listen_addresses: "localhost"
 
 # Log SQL statements taking at least this many milliseconds.
 postgresql_log_min_duration_statement: 1000
+
+# Application database management.
+postgresql_manage_application_database: true
+postgresql_application_database: appdb
+postgresql_application_user: appuser
+postgresql_application_user_password: "{{ vault_postgresql_appuser_password }}"

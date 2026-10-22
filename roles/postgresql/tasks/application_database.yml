@@ -1,0 +1,26 @@
+---
+- name: Validate application database settings
+  ansible.builtin.assert:
+    that:
+      - postgresql_application_database | length > 0
+      - postgresql_application_user | length > 0
+      - postgresql_application_user_password | length > 0
+    fail_msg: "Application database settings or Vault password are missing."
+
+- name: Create PostgreSQL application user
+  community.postgresql.postgresql_user:
+    name: "{{ postgresql_application_user }}"
+    password: "{{ postgresql_application_user_password }}"
+    role_attr_flags: "LOGIN,NOSUPERUSER,NOCREATEDB,NOCREATEROLE"
+    state: present
+  become: true
+  become_user: postgres
+  no_log: true
+
+- name: Create PostgreSQL application database
+  community.postgresql.postgresql_db:
+    name: "{{ postgresql_application_database }}"
+    owner: "{{ postgresql_application_user }}"
+    state: present
+  become: true
+  become_user: postgres

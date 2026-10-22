@@ -1,38 +1,47 @@
-Role Name
-=========
+# PostgreSQL Role
 
-A brief description of the role goes here.
+## Purpose
+Installs and configures PostgreSQL on Ubuntu Server 24.04 and newer, including service management, localhost listening, slow-query logging, and optional application database management.
 
-Requirements
-------------
+## Requirements
+- Ansible Core and the `community.postgresql` collection.
+- Python PostgreSQL driver on the managed server.
+- Root and PostgreSQL-user privilege escalation.
+- Ansible Vault for application credentials.
+- The `acl` package on the managed server.
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+## Default Configuration
+- `postgresql_listen_addresses`: `localhost`
+- `postgresql_log_min_duration_statement`: `1000` milliseconds
+- `postgresql_manage_application_database`: `true`
+- `postgresql_application_database`: `appdb`
+- `postgresql_application_user`: `appuser`
+- Application password: `vault_postgresql_appuser_password`
 
-Role Variables
---------------
+The application role has LOGIN but is not a superuser and cannot create databases or roles. It owns its application database.
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+Set `postgresql_manage_application_database: false` to disable application database and user management.
 
-Dependencies
-------------
+## Security
+- PostgreSQL listens on localhost by default.
+- Application credentials are stored in Ansible Vault.
+- The password-management task uses `no_log: true`.
+- Review authentication, backups, monitoring, and access controls before production use.
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+## Dependencies
+Uses `community.postgresql.postgresql_user` and `community.postgresql.postgresql_db`.
 
-Example Playbook
-----------------
+## Usage
+Set `db_engine: postgresql` in the database inventory variables.
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+Validate and apply:
+    ansible-playbook --syntax-check playbooks/database.yml
+    ansible-playbook playbooks/database.yml
 
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+Repeat the playbook to verify idempotency. An already-configured host should report `changed=0` and `failed=0`.
 
-License
--------
+## License
+Project license to be determined.
 
-BSD
-
-Author Information
-------------------
-
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+## Maintainer
+Server Automation lab.

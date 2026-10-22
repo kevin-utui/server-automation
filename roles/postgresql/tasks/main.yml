@@ -69,3 +69,7 @@
     name: "{{ postgresql_service_name }}"
     enabled: true
     state: started
+
+- name: Manage PostgreSQL application database
+  ansible.builtin.import_tasks: application_database.yml
+  when: postgresql_manage_application_database | bool
