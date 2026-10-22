@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  role_name: mysql
+  description: Install and configure MySQL Server on Ubuntu with local-only listening and slow-query logging.
+  license: MIT
+  min_ansible_version: "2.16"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+
+dependencies: []

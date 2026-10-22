@@ -1,0 +1,3 @@
+---
+ansible_user: mysqlserver
+ansible_become_password: "{{ vault_mysqlserver_become_password }}"

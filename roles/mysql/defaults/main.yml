@@ -1,0 +1,17 @@
+---
+# MySQL role defaults for Ubuntu Server 24.04.
+
+mysql_packages:
+  - mysql-server
+  - mysql-client
+
+mysql_service_name: mysql
+
+# Keep database access local until client access is approved.
+mysql_bind_address: "127.0.0.1"
+mysql_port: 3306
+
+# Slow-query logging threshold in seconds.
+mysql_slow_query_log_enabled: true
+mysql_slow_query_time: 1
+mysql_slow_query_log_file: /var/log/mysql/mysql-slow.log

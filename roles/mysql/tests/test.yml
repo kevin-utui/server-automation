@@ -1,0 +1,8 @@
+---
+- name: Integration test for the MySQL role
+  hosts: mysql_servers
+  become: true
+  gather_facts: true
+
+  roles:
+    - mysql

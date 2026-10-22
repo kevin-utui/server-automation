@@ -1,0 +1,44 @@
+---
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == "Ubuntu"
+      - ansible_distribution_version is version("24.04", ">=")
+    fail_msg: "This MySQL role currently supports Ubuntu 24.04 and newer."
+
+- name: Install MySQL packages
+  ansible.builtin.apt:
+    name: "{{ mysql_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure MySQL log directory exists
+  ansible.builtin.file:
+    path: /var/log/mysql
+    state: directory
+    owner: mysql
+    group: adm
+    mode: "0750"
+
+- name: Configure MySQL networking and slow-query logging
+  ansible.builtin.copy:
+    dest: /etc/mysql/mysql.conf.d/60-server-automation.cnf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible. Do not edit manually.
+      [mysqld]
+      bind-address = {{ mysql_bind_address }}
+      port = {{ mysql_port }}
+      slow_query_log = {{ 'ON' if mysql_slow_query_log_enabled else 'OFF' }}
+      slow_query_log_file = {{ mysql_slow_query_log_file }}
+      long_query_time = {{ mysql_slow_query_time }}
+  notify: Restart MySQL
+
+- name: Ensure MySQL service is enabled and running
+  ansible.builtin.service:
+    name: "{{ mysql_service_name }}"
+    enabled: true
+    state: started
