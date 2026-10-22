@@ -1,38 +1,46 @@
-Role Name
-=========
+# MariaDB Ansible Role
 
-A brief description of the role goes here.
+## Purpose
 
-Requirements
-------------
+Installs and configures MariaDB on supported Ubuntu Server hosts.
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+## Requirements
 
-Role Variables
---------------
+- Ubuntu Server 24.04 or later.
+- Ansible privilege escalation (`become: true`).
+- A working APT package repository.
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+## Role defaults
 
-Dependencies
-------------
+Defined in `defaults/main.yml`:
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+- `mariadb_packages`: server and client packages.
+- `mariadb_service_name`: `mariadb`.
+- `mariadb_bind_address`: `127.0.0.1`.
+- `mariadb_port`: `3306`.
+- `mariadb_slow_query_log_enabled`: `true`.
+- `mariadb_slow_query_time`: `1`.
+- `mariadb_slow_query_log_file`: `/var/log/mysql/mariadb-slow.log`.
 
-Example Playbook
-----------------
+## Usage
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+The project selects this role through `playbooks/database.yml` by setting
+`db_engine: mariadb` for the target host or inventory group.
 
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+Deploy to the dedicated lab host:
 
-License
--------
+```bash
+ansible-playbook playbooks/database.yml --limit MariaDBServer --diff
+```
 
-BSD
+## Security
 
-Author Information
-------------------
+The default listener is loopback-only. This role does not create application
+users or credentials, configure remote access, or manage firewall exceptions.
+Review these requirements separately before enabling remote connectivity.
 
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+## Validation
+
+Verify service status, listening address, managed configuration, and
+idempotency after deployment. A second unchanged run should report
+`changed=0`.

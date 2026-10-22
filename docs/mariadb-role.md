@@ -2,75 +2,92 @@
 
 ## Purpose
 
-Installs and configures MariaDB on supported Ubuntu servers through
-Ansible, using repeatable and version-controlled configuration.
+The `roles/mariadb` role installs and configures MariaDB on a dedicated
+Ubuntu Server database host. The shared `playbooks/database.yml` playbook
+selects this role through the inventory variable `db_engine`.
 
-## Defaults
+## Target host
 
-- Packages: mariadb-server and mariadb-client
-- Service: mariadb
-- Bind address: 127.0.0.1
-- Port: 3306
+| Property | Value |
+|---|---|
+| Inventory host | `MariaDBServer` |
+| IP address | `192.168.174.132` |
+| Operating system | Ubuntu Server 24.04.5 LTS |
+| MariaDB version validated | 10.11.14 |
+| Service | `mariadb` |
+| Database port | TCP 3306 |
+| Bind address | `127.0.0.1` |
+
+## Managed configuration
+
+The role installs `mariadb-server` and `mariadb-client`, prepares the
+slow-query log directory, deploys the server configuration, and ensures
+that the MariaDB service is enabled and running.
+
+Configuration file:
+`/etc/mysql/mariadb.conf.d/60-server-automation.cnf`
+
+Expected settings:
+- Bind address: `127.0.0.1`
+- Port: `3306`
 - Slow-query logging: enabled
-- Slow-query threshold: 1 second
-- Configuration file: /etc/mysql/mariadb.conf.d/60-server-automation.cnf
-- Slow-query log: /var/log/mysql/mariadb-slow.log
+- Slow-query threshold: one second
+- Slow-query log: `/var/log/mysql/mariadb-slow.log`
+- Log directory owner and group: `mysql:adm`
+- Log directory permissions: `0750`
 
-## Implemented tasks
+Configuration changes notify the MariaDB restart handler.
 
-1. Validate the operating system.
-2. Install MariaDB packages.
-3. Ensure the log directory exists with controlled ownership and permissions.
-4. Configure listening address, port, and slow-query logging.
-5. Enable and start the MariaDB service.
-6. Restart the service when its managed configuration changes.
+## Security boundaries
 
-## Security
+MariaDB listens on loopback by default. This role does not configure
+remote database access, application database users, application
+credentials, or firewall exceptions. Review connectivity requirements,
+access controls, and firewall rules before enabling remote access.
 
-MariaDB is configured to listen on localhost by default. Remote access,
-database users, application credentials, and firewall exceptions are
-not configured by this role at this stage.
+## Deployment
 
-Verify the effective listening socket and log-file permissions after
-installation. Do not enable remote access until client requirements
-and least-privilege database grants have been reviewed.
-
-## Validation plan
-
-- Playbook syntax check
-- Successful package installation
-- Service enabled and active
-- Effective bind address and port verified
-- Slow-query logging configuration verified
-- Repeat run returns changed=0
-
-## Execution
-
-Set `db_engine: mariadb` in `inventory/group_vars/databases.yml`
-when the database host is ready for MariaDB testing, then run:
+Validate the shared playbook:
 
 ```bash
-ansible-playbook playbooks/database.yml
+ansible-playbook --syntax-check playbooks/database.yml
+```
 
-## Validation results
+Deploy only to the dedicated MariaDB host:
 
-Tested on the lab database host running Ubuntu Server 24.04.
+```bash
+ansible-playbook playbooks/database.yml --limit MariaDBServer --diff
+```
 
-- Package installation completed successfully.
-- MariaDB service is active and enabled.
-- PostgreSQL remained active during the temporary co-installation test.
-- MariaDB listens on 127.0.0.1:3306.
-- PostgreSQL listens on 127.0.0.1:5432.
-- Effective MariaDB bind address is 127.0.0.1.
-- Slow-query logging is enabled with a one-second threshold.
-- Slow-query log directory permissions are mysql:adm, mode 0750.
-- Slow-query log file permissions are mysql:mysql, mode 0660.
-- Second Ansible run returned changed=0 and failed=0.
+Redis remains optional and disabled by default.
 
-## Lab test limitation
+## Validation performed
 
-MariaDB and PostgreSQL were temporarily installed on the same host
-to validate the MariaDB role. The intended architecture remains one
-selected database engine per host or project. The inventory selection
-has been restored to PostgreSQL after testing. MariaDB has not been
-uninstalled, and its data has not been removed.
+The deployment completed successfully on the dedicated MariaDB host.
+Runtime checks confirmed that the service was active and enabled, the
+listener was `127.0.0.1:3306`, and the managed slow-query settings were
+present. The log directory had owner `mysql`, group `adm`, and mode
+`0750`. A second Ansible run reported `changed=0` and `failed=0`.
+
+Useful checks:
+
+```bash
+systemctl is-active mariadb
+systemctl is-enabled mariadb
+mariadb --version
+sudo ss -lntp | grep ':3306'
+sudo cat /etc/mysql/mariadb.conf.d/60-server-automation.cnf
+sudo stat -c '%U:%G %a %n' /var/log/mysql
+```
+
+## Check-mode limitation
+
+Check mode does not install packages. A service task can therefore fail
+in check mode when MariaDB is not yet installed. Use check mode for
+supported predictive checks, followed by deployment and runtime tests.
+
+## Scope
+
+This role manages the MariaDB server baseline only. Application schemas,
+users, passwords, backups, replication, and production firewall changes
+require separate, explicitly reviewed automation.
