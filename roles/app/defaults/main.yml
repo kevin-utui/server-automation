@@ -1,2 +1,35 @@
 ---
-# defaults file for roles/app
+# Application server defaults for Ubuntu Server 24.04.
+
+app_supported_os: Ubuntu
+app_minimum_os_version: "24.04"
+
+# Docker packages from Ubuntu repositories.
+app_docker_packages:
+  - docker.io
+  - docker-compose-v2
+
+app_docker_service: docker
+
+# Compose deployment remains disabled until explicitly configured.
+app_compose_deploy_enabled: false
+app_compose_project_name: application
+app_compose_project_dir: /opt/application
+app_compose_file: compose.yml
+
+# Optional Vault-managed environment file.
+app_env_file_enabled: false
+app_env_file_path: /opt/application/.env
+app_env_file_mode: "0600"
+
+# Container logging defaults for future Compose services.
+app_container_log_driver: json-file
+app_container_log_max_size: "10m"
+app_container_log_max_file: "3"
+
+# Environment values must be supplied by encrypted Vault variables.
+# Do not place credentials directly in this defaults file.
+app_env_vars: {}
+app_env_file_owner: root
+app_env_file_group: root
+app_compose_project_dir_mode: "0750"

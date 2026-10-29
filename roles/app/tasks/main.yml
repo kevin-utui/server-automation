@@ -1,2 +1,148 @@
 ---
-# tasks file for roles/app
+- name: Validate supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == app_supported_os
+      - ansible_distribution_version is version(app_minimum_os_version, ">=")
+    fail_msg: >-
+      This application role supports Ubuntu {{ app_minimum_os_version }}
+      and newer.
+
+- name: Validate Docker package configuration
+  ansible.builtin.assert:
+    that:
+      - app_docker_packages | length > 0
+      - app_docker_service | length > 0
+    fail_msg: "Docker packages and service name must be configured."
+
+- name: Install Docker Engine and Compose plugin
+  ansible.builtin.apt:
+    name: "{{ app_docker_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure Docker service is enabled and running
+  ansible.builtin.service:
+    name: "{{ app_docker_service }}"
+    enabled: true
+    state: started
+
+- name: Verify Docker CLI is available
+  ansible.builtin.command:
+    argv:
+      - docker
+      - --version
+  register: app_docker_version
+  changed_when: false
+
+- name: Verify Docker Compose plugin is available
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - version
+  register: app_compose_version
+  changed_when: false
+
+- name: Report installed container tooling
+  ansible.builtin.debug:
+    msg:
+      - "{{ app_docker_version.stdout }}"
+      - "{{ app_compose_version.stdout }}"
+
+- name: Validate environment-file configuration when enabled
+  ansible.builtin.assert:
+    that:
+      - app_env_file_path is string
+      - app_env_file_path.startswith('/')
+      - app_env_file_mode == "0600"
+      - app_env_vars is defined
+      - app_env_vars is mapping
+      - app_env_vars | length > 0
+    fail_msg: >-
+      Environment-file creation requires an absolute path, mode 0600,
+      and a non-empty mapping of Vault-managed values.
+  when: app_env_file_enabled | bool
+
+- name: Validate application environment variable names and values
+  ansible.builtin.assert:
+    that:
+      - item.key is match('^[A-Za-z_][A-Za-z0-9_]*$')
+      - item.value is string
+      - (item.value | regex_search('[\r\n]')) is none
+    fail_msg: >-
+      Environment variable names must be valid, values must be strings,
+      and multiline values are not supported.
+  loop: "{{ app_env_vars | dict2items }}"
+  no_log: true
+  when: app_env_file_enabled | bool
+
+- name: Create application directory for environment file
+  ansible.builtin.file:
+    path: "{{ app_env_file_path | dirname }}"
+    state: directory
+    owner: "{{ app_env_file_owner }}"
+    group: "{{ app_env_file_group }}"
+    mode: "{{ app_compose_project_dir_mode }}"
+  when: app_env_file_enabled | bool
+
+- name: Write Vault-managed application environment file
+  ansible.builtin.copy:
+    dest: "{{ app_env_file_path }}"
+    content: |
+      {% for key, value in app_env_vars | dictsort %}
+      {{ key }}='{{ value | replace("'", "\\'") }}'
+      {% endfor %}
+    owner: "{{ app_env_file_owner }}"
+    group: "{{ app_env_file_group }}"
+    mode: "{{ app_env_file_mode }}"
+  no_log: true
+  when: app_env_file_enabled | bool
+
+- name: Validate Compose deployment configuration when enabled
+  ansible.builtin.assert:
+    that:
+      - app_compose_project_name is match('^[a-z0-9][a-z0-9_-]*$')
+      - app_compose_project_dir is string
+      - app_compose_project_dir.startswith('/')
+      - app_compose_file is string
+      - app_compose_file | length > 0
+      - "'/' not in app_compose_file"
+      - app_compose_file not in ['.', '..']
+    fail_msg: >-
+      Compose deployment requires a valid project name, an absolute project
+      directory, and a Compose filename without directory components.
+  when: app_compose_deploy_enabled | bool
+
+- name: Check that the Compose configuration file exists when deployment is enabled
+  ansible.builtin.stat:
+    path: "{{ app_compose_project_dir }}/{{ app_compose_file }}"
+  register: app_compose_config_stat
+  when: app_compose_deploy_enabled | bool
+
+- name: Require an existing Compose configuration file
+  ansible.builtin.assert:
+    that:
+      - app_compose_config_stat.stat.exists
+      - app_compose_config_stat.stat.isreg
+    fail_msg: >-
+      The Compose configuration file must exist before deployment is enabled.
+  when: app_compose_deploy_enabled | bool
+
+- name: Validate Compose configuration without deploying containers
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-directory
+      - "{{ app_compose_project_dir }}"
+      - --project-name
+      - "{{ app_compose_project_name }}"
+      - --file
+      - "{{ app_compose_file }}"
+      - config
+      - --quiet
+    chdir: "{{ app_compose_project_dir }}"
+  changed_when: false
+  when: app_compose_deploy_enabled | bool

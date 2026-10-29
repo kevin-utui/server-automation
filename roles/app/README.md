@@ -1,38 +1,89 @@
-Role Name
-=========
+# Application Server Role
 
-A brief description of the role goes here.
+## Purpose
 
-Requirements
-------------
+Prepare Ubuntu application servers with Docker Engine and the Docker Compose
+plugin. The role validates the operating system, installs the required
+packages, ensures Docker is enabled and running, and verifies both CLI tools.
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+Compose deployment and environment-file management are disabled by default.
+This role does not currently deploy application containers.
 
-Role Variables
---------------
+## Requirements
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+- Ansible Core with the built-in modules used by the role.
+- SSH access to the target host.
+- Privilege escalation through `become`.
+- A supported Ubuntu installation and access to package repositories.
 
-Dependencies
-------------
+## Default Variables
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+| Variable | Default | Purpose |
+|---|---|---|
+| `app_supported_os` | `Ubuntu` | Expected operating system |
+| `app_minimum_os_version` | `"24.04"` | Minimum supported version |
+| `app_docker_packages` | `docker.io`, `docker-compose-v2` | Packages to install |
+| `app_docker_service` | `docker` | Docker service name |
+| `app_compose_deploy_enabled` | `false` | Enable Compose configuration validation |
+| `app_compose_project_name` | `application` | Compose project name |
+| `app_compose_project_dir` | `/opt/application` | Project directory |
+| `app_compose_file` | `compose.yml` | Compose filename |
+| `app_env_file_enabled` | `false` | Enable environment-file management |
+| `app_env_file_path` | `/opt/application/.env` | Environment-file path |
+| `app_env_file_mode` | `"0600"` | Required file permissions |
+| `app_env_file_owner` | `root` | File owner |
+| `app_env_file_group` | `root` | File group |
+| `app_env_vars` | `{}` | Environment values |
+| `app_compose_project_dir_mode` | `"0750"` | Project directory permissions |
 
-Example Playbook
-----------------
+The variables `app_container_log_driver`, `app_container_log_max_size`,
+and `app_container_log_max_file` are defined as defaults but are not currently
+applied to containers.
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+## Environment File Safety
 
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+Environment-file creation requires an absolute path, mode `0600`, and a
+non-empty mapping of environment values. Variable names and values are
+validated, and sensitive task output is suppressed.
 
-License
--------
+Environment-file serialization has not yet been validated for all special
+characters. Keep this feature disabled until serialization has been corrected
+and tested. Store secrets in Ansible Vault, not in plaintext defaults.
 
-BSD
+## Compose Validation
 
-Author Information
-------------------
+When enabled, the role validates Compose settings, requires an existing
+Compose file, and runs `docker compose config --quiet`. This validates the
+configuration without deploying containers.
 
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+Actual Compose deployment is not implemented by this role.
+
+## Example Playbook
+
+```yaml
+---
+- name: Prepare application servers
+  hosts: applications
+  become: true
+  gather_facts: true
+  roles:
+    - role: app
+```
+
+## Validation
+
+The lab AppServer has been tested with this role. The recorded run confirmed
+Docker and Compose availability, with `changed=0` and `failed=0`.
+Environment-file and Compose validation tasks were skipped because both
+features were disabled.
+
+## Dependencies
+
+No external roles are currently declared.
+
+## Limitations
+
+- Application containers are not deployed.
+- Environment-file serialization requires further testing.
+- Container logging defaults are not applied.
+- Production deployment has not been validated by this role.
