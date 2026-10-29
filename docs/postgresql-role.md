@@ -54,3 +54,22 @@ Select the PostgreSQL engine for the database host in
 ```yaml
 db_engine: postgresql
 db_redis_enabled: false
+```
+
+Deploy only to the PostgreSQL lab host:
+
+```bash
+ansible-playbook playbooks/database.yml --limit DataBaseServer -e postgresql_manage_application_database=false
+```
+
+Validate syntax and preview changes before deployment:
+
+```bash
+ansible-playbook --syntax-check playbooks/database.yml
+ansible-playbook playbooks/database.yml --limit DataBaseServer --check -e postgresql_manage_application_database=false
+```
+
+Application database and user management are disabled by default.
+Keep them disabled unless the requirements and task behaviour have been
+reviewed and explicitly approved. Do not use this procedure to change
+application credentials or existing database data.

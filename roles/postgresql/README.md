@@ -13,14 +13,14 @@ Installs and configures PostgreSQL on Ubuntu Server 24.04 and newer, including s
 ## Default Configuration
 - `postgresql_listen_addresses`: `localhost`
 - `postgresql_log_min_duration_statement`: `1000` milliseconds
-- `postgresql_manage_application_database`: `true`
+- `postgresql_manage_application_database`: `false`
 - `postgresql_application_database`: `appdb`
 - `postgresql_application_user`: `appuser`
 - Application password: `vault_postgresql_appuser_password`
 
 The application role has LOGIN but is not a superuser and cannot create databases or roles. It owns its application database.
 
-Set `postgresql_manage_application_database: false` to disable application database and user management.
+Application database and user management are disabled by default. Keep `postgresql_manage_application_database: false` unless the requirements, credentials, and task behaviour have been reviewed and explicitly approved. Enabling this option may create or modify application database resources.
 
 ## Security
 - PostgreSQL listens on localhost by default.
