@@ -26,7 +26,8 @@ applications or vendor containers.
 3. Installs Docker Engine and Docker Compose.
 4. Enables and starts Docker.
 5. Creates API project directories.
-6. Verifies Docker Engine and Compose availability.
+6. Configures Docker container logging and log rotation.
+7. Verifies Docker Engine and Compose availability.
 
 ## Directory structure
 
@@ -54,6 +55,10 @@ Individual API projects can later be organised under the relevant category.
 | `api_directory_group` | `root` | Directory group |
 | `api_base_dir_mode` | `0750` | Base directory permissions |
 | `api_category_dir_mode` | `0750` | Category directory permissions |
+| `api_docker_log_driver` | `json-file` | Docker logging driver |
+| `api_docker_log_max_size` | `10m` | Maximum log file size |
+| `api_docker_log_max_file` | `3` | Maximum number of log files |
+| `api_docker_log_compress` | `true` | Compress rotated logs |
 
 ## Security and operational notes
 
@@ -64,7 +69,7 @@ Individual API projects can later be organised under the relevant category.
 - No public container ports are configured.
 - Nginx, TLS termination, firewall rules, and API routing are not
   configured by this role.
-- Container logging policies are not configured by this role.
+- Docker container logging uses the configured daemon-wide policy.
 - No application secrets or vendor credentials are managed here.
 - The role does not modify database servers.
 
@@ -112,9 +117,8 @@ The following capabilities are outside the current baseline:
 2. Per-project Docker Compose definitions.
 3. Container image version management.
 4. Environment configuration and secrets management.
-5. Container logging policies.
-6. Nginx reverse proxy and TLS configuration.
-7. Firewall and external access controls.
+5. Nginx reverse proxy and TLS configuration.
+6. Firewall and external access controls.
 
 ### Deployment verification
 
@@ -128,6 +132,11 @@ The API server baseline was deployed and verified on `ApiServer`.
 - Directory ownership: `root:root`.
 - Directory permissions: `0750`.
 - No API containers were deployed as part of this baseline.
+- Docker logging driver: `json-file`.
+- Maximum log size: `10m`.
+- Maximum log files: `3`.
+- Log compression: enabled.
+- Docker daemon configuration: `/etc/docker/daemon.json`.
 - A second Ansible execution completed with `changed=0`.
 
 These results confirm the infrastructure baseline only. They do not

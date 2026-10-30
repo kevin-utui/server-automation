@@ -21,3 +21,9 @@ api_directory_owner: root
 api_directory_group: root
 api_base_dir_mode: "0750"
 api_category_dir_mode: "0750"
+
+# Docker container logging policy
+api_docker_log_driver: json-file
+api_docker_log_max_size: "10m"
+api_docker_log_max_file: "3"
+api_docker_log_compress: "true"

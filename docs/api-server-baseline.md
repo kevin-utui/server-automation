@@ -30,6 +30,7 @@ The role performs the following tasks:
 - Installs Docker Engine and Docker Compose.
 - Enables and starts the Docker service.
 - Creates the API project directory structure.
+- Configures Docker container logging and log rotation.
 - Verifies Docker Engine and Compose availability.
 
 ## 4. Directory structure
@@ -64,6 +65,11 @@ The baseline was successfully deployed on `ApiServer`.
 | Vendor API directory | `/opt/apis/vendor` |
 | Directory ownership | `root:root` |
 | Directory permissions | `0750` |
+| Docker logging driver | `json-file` |
+| Maximum log size | `10m` |
+| Maximum log files | `3` |
+| Log compression | Enabled |
+| Docker daemon configuration | `/etc/docker/daemon.json` |
 | Running API containers | None |
 
 A second execution of the API playbook completed with
@@ -77,7 +83,6 @@ The current baseline does not include:
 - Docker Compose project definitions.
 - API image version management.
 - Application environment files or secrets.
-- Container logging policies.
 - Nginx reverse proxy configuration.
 - TLS certificate installation or management.
 - Firewall changes or external access configuration.
@@ -92,11 +97,10 @@ The following work remains for the API platform:
 1. Define and validate per-API Docker Compose projects.
 2. Establish image versioning and update procedures.
 3. Define environment configuration and secrets handling.
-4. Implement and validate container logging policies.
-5. Configure Nginx as the reverse proxy.
-6. Plan and implement TLS.
-7. Review firewall rules and permitted network access.
-8. Deploy a test API and validate routing, connectivity, and rollback.
+4. Configure Nginx as the reverse proxy.
+5. Plan and implement TLS.
+6. Review firewall rules and permitted network access.
+7. Deploy a test API and validate routing, connectivity, and rollback.
 
 Each stage should be tested in the lab before being considered ready
 for production use.

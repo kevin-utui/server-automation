@@ -20,6 +20,10 @@
       - item is match('^[a-zA-Z0-9_-]+$')
       - api_directory_owner | length > 0
       - api_directory_group | length > 0
+      - api_docker_log_driver in ['json-file', 'local']
+      - api_docker_log_max_size is match('^[1-9][0-9]*[kmg]$')
+      - api_docker_log_max_file is match('^[1-9][0-9]*$')
+      - api_docker_log_compress in ['true', 'false']
     fail_msg: "One or more API role configuration values are invalid."
     success_msg: "API role configuration is valid."
   loop: "{{ api_project_categories }}"
@@ -37,6 +41,24 @@
     state: started
     enabled: true
   when: not ansible_check_mode
+
+- name: Configure Docker container logging
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {
+        "log-driver": "{{ api_docker_log_driver }}",
+        "log-opts": {
+          "max-size": "{{ api_docker_log_max_size }}",
+          "max-file": "{{ api_docker_log_max_file }}",
+          "compress": "{{ api_docker_log_compress }}"
+        }
+      }
+    validate: "python3 -m json.tool %s"
+  notify: Restart Docker
 
 - name: Create API base directory
   ansible.builtin.file:
