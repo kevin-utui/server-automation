@@ -9,7 +9,7 @@ engine-specific roles. Each database VM selects its engine independently.
 
 | Inventory host | IP address | Database engine | Inventory group |
 |---|---|---|---|
-| `DataBaseServer` | `192.168.174.130` | PostgreSQL | `postgresql_servers` |
+| `PostgreSqlServer` | `192.168.174.130` | PostgreSQL | `postgresql_servers` |
 | `MySQLServer` | `192.168.174.131` | MySQL | `mysql_servers` |
 | `MariaDBServer` | `192.168.174.132` | MariaDB | `mariadb_servers` |
 | `AppServer` | `192.168.174.129` | Application server | `applications` |
@@ -58,7 +58,7 @@ List the hosts targeted by the playbook:
 
 Deploy to one database host at a time during lab validation:
 
-    ansible-playbook playbooks/database.yml --limit DataBaseServer --diff
+    ansible-playbook playbooks/database.yml --limit PostgreSqlServer --diff
     ansible-playbook playbooks/database.yml --limit MySQLServer --diff
     ansible-playbook playbooks/database.yml --limit MariaDBServer --diff
 
@@ -87,10 +87,10 @@ For each database host:
 5. Run the playbook again and confirm idempotency where applicable.
 6. Record runtime results and resolve failures before proceeding.
 
-MariaDB has passed a dedicated-host deployment and runtime validation,
-including a second run with `changed=0`. Consult each engine's role
-documentation for its specific validation details. Do not treat the
-existence of a role or documentation as proof of a fresh runtime test.
+PostgreSQL, MySQL, and MariaDB have each passed dedicated-host deployment,
+runtime verification, and a second playbook execution with `changed=0`.
+The latest validation also confirmed that all three services are enabled
+and active, with their intended loopback listeners and slow-query settings.
 
 ## Scope and change control
 

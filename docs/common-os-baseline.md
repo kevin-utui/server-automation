@@ -1,5 +1,7 @@
 Stage 1: Common OS Baseline
 
+> Historical inventory note: The original database host name was `DataBaseServer`. Following the database-host separation, its current inventory name is `PostgreSqlServer`.
+
 ## 1. Objective
 
 Implement and validate a reusable Ansible common role for the

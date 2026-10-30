@@ -1,9 +1,10 @@
 Security Baseline and Secret Management
 
-**Project:** Server Automation Lab  
-**Environment:** VMware lab — Ubuntu Server 24.04 LTS  
-**Controller:** ansserver  
-**Managed hosts:** AppServer, DataBaseServer  
+**Project:** Server Automation Lab
+**Environment:** VMware lab — Ubuntu Server 24.04 LTS
+**Controller:** ansserver
+**Original baseline hosts:** AppServer, DataBaseServer
+**Current inventory:** AppServer, PostgreSqlServer, MySQLServer, MariaDBServer
 **Status:** Implementation and validation passed; documentation and Git commit pending.
 
 ## 1. Objectives
@@ -33,8 +34,8 @@ The project configuration includes:
 - Shared encrypted variables: `inventory/group_vars/all/vault.yml`
 - AppServer variables: `inventory/host_vars/AppServer/vars.yml`
 - AppServer encrypted variable file: `inventory/host_vars/AppServer/vault.yml`
-- DataBaseServer variables: `inventory/host_vars/DataBaseServer/vars.yml`
-- DataBaseServer encrypted variable file: `inventory/host_vars/DataBaseServer/vault.yml`
+- PostgreSqlServer variables: `inventory/host_vars/PostgreSqlServer/vars.yml`
+- PostgreSqlServer encrypted variable file: `inventory/host_vars/PostgreSqlServer/vault.yml`
 
 The host-specific variable files reference `vault_become_password`.
 The host-specific Vault files use inline `!vault` encryption.

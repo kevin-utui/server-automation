@@ -5,8 +5,12 @@
 Configure a conservative, repeatable policy for automated security updates
 on the Server Automation lab's Ubuntu Server hosts:
 
+Original Stage 1 target hosts:
+
 - AppServer
 - DataBaseServer
+
+> Historical inventory note: `DataBaseServer` was the original database host name. The current database inventory contains `PostgreSqlServer`, `MySQLServer`, and `MariaDBServer`. The original validation results below apply to the Stage 1 hosts listed above; they do not establish security-updates validation on the current database hosts.
 
 Configuration is managed by Ansible through the `common` role.
 
@@ -83,8 +87,8 @@ Review the package policy and pending updates periodically.
 
 ## 6. Validation performed
 
-The following checks completed successfully on both `AppServer` and
-`DataBaseServer`:
+The following checks completed successfully on the original Stage 1
+hosts, `AppServer` and `DataBaseServer`:
 
 - The required packages were installed and their versions were queried.
 - `20auto-upgrades` contained both periodic settings set to `1`.

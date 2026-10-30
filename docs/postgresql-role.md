@@ -9,7 +9,7 @@ version-controlled lab automation.
 ## Current lab configuration
 
 - Inventory group: `databases`
-- Target host: `DataBaseServer`
+- Target host: `PostgreSqlServer`
 - Operating system: Ubuntu Server 24.04
 - PostgreSQL cluster: `16/main`
 - PostgreSQL port: `5432`
@@ -48,8 +48,9 @@ requirements and database privileges have been defined.
 
 ## Execution
 
-Select the PostgreSQL engine for the database host in
-`inventory/group_vars/databases.yml`:
+The PostgreSQL engine is selected for this host through the child-group
+variables in `inventory/group_vars/postgresql_servers/vars.yml`.
+The shared database group retains common database-server settings.
 
 ```yaml
 db_engine: postgresql
@@ -59,14 +60,14 @@ db_redis_enabled: false
 Deploy only to the PostgreSQL lab host:
 
 ```bash
-ansible-playbook playbooks/database.yml --limit DataBaseServer -e postgresql_manage_application_database=false
+ansible-playbook playbooks/database.yml --limit PostgreSqlServer -e postgresql_manage_application_database=false
 ```
 
 Validate syntax and preview changes before deployment:
 
 ```bash
 ansible-playbook --syntax-check playbooks/database.yml
-ansible-playbook playbooks/database.yml --limit DataBaseServer --check -e postgresql_manage_application_database=false
+ansible-playbook playbooks/database.yml --limit PostgreSqlServer --check -e postgresql_manage_application_database=false
 ```
 
 Application database and user management are disabled by default.

@@ -67,6 +67,12 @@ Example checks:
     sudo cat /etc/mysql/mysql.conf.d/60-server-automation.cnf
     sudo stat -c '%U:%G %a %n' /var/log/mysql
 
-Record the actual installed version and runtime results after validation.
-This document describes the intended configuration, not proof of a
-fresh runtime test.
+## Validation performed
+
+The deployment completed successfully on the dedicated MySQL host.
+MySQL 8.0.46 was validated. Runtime checks confirmed that the service was
+active and enabled, the listener was `127.0.0.1:3306`, and the managed
+slow-query settings were present. A second Ansible run reported
+`changed=0`, with no failed or unreachable hosts.
+
+The log directory was also checked during operational validation.
