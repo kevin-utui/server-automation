@@ -27,3 +27,13 @@ api_docker_log_driver: json-file
 api_docker_log_max_size: "10m"
 api_docker_log_max_file: "3"
 api_docker_log_compress: "true"
+
+# Sample API project staging
+api_sample_project_source: "{{ playbook_dir }}/../api-projects/internal/sample-api/"
+api_sample_project_destination: "{{ api_base_dir }}/internal/sample-api"
+
+# Sample API deployment
+api_deploy_enabled: false
+api_sample_compose_file: "{{ api_sample_project_destination }}/compose.yml"
+api_sample_health_url: "http://127.0.0.1:8000/health"
+api_sample_health_timeout: 120

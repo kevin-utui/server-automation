@@ -77,6 +77,15 @@
     mode: "{{ api_category_dir_mode }}"
   loop: "{{ api_project_categories }}"
 
+- name: Stage sample API project files
+  ansible.builtin.copy:
+    src: "{{ api_sample_project_source }}"
+    dest: "{{ api_sample_project_destination }}/"
+    owner: root
+    group: root
+    directory_mode: "0750"
+    mode: "0640"
+
 - name: Verify Docker Engine
   ansible.builtin.command:
     cmd: docker --version
@@ -95,3 +104,7 @@
       - "{{ api_docker_version.stdout }}"
       - "{{ api_compose_version.stdout }}"
   when: not ansible_check_mode
+
+- name: Deploy sample API when explicitly enabled
+  ansible.builtin.include_tasks: deploy_sample.yml
+  when: api_deploy_enabled | bool

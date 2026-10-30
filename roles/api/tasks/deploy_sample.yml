@@ -1,0 +1,32 @@
+---
+- name: Validate sample API Compose configuration
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - -f
+      - "{{ api_sample_compose_file }}"
+      - config
+      - --quiet
+  changed_when: false
+
+- name: Build and deploy sample API
+  community.docker.docker_compose_v2:
+    project_src: "{{ api_sample_project_destination }}"
+    files:
+      - compose.yml
+    state: present
+    build: policy
+    recreate: auto
+    remove_orphans: false
+  register: api_sample_deploy
+
+- name: Wait for sample API health endpoint
+  ansible.builtin.uri:
+    url: "{{ api_sample_health_url }}"
+    method: GET
+    status_code: 200
+  register: api_sample_health
+  retries: "{{ (api_sample_health_timeout / 5) | int }}"
+  delay: 5
+  until: (api_sample_health.status | default(0)) == 200
