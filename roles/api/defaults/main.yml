@@ -1,2 +1,23 @@
 ---
-# defaults file for roles/api
+# Supported operating system
+api_supported_os: Ubuntu
+api_minimum_os_version: "24.04"
+
+# Docker Engine and Compose
+api_docker_packages:
+  - docker.io
+  - docker-compose-v2
+
+api_docker_service: docker
+
+# API project directory structure
+api_base_dir: /opt/apis
+
+api_project_categories:
+  - internal
+  - vendor
+
+api_directory_owner: root
+api_directory_group: root
+api_base_dir_mode: "0750"
+api_category_dir_mode: "0750"

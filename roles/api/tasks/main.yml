@@ -1,2 +1,75 @@
 ---
-# tasks file for roles/api
+- name: Validate supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == api_supported_os
+      - ansible_distribution_version is version(api_minimum_os_version, '>=')
+    fail_msg: >-
+      This API role supports {{ api_supported_os }}
+      {{ api_minimum_os_version }} or later.
+    success_msg: "Operating system is supported."
+
+- name: Validate API role configuration
+  ansible.builtin.assert:
+    that:
+      - api_docker_packages | length > 0
+      - api_docker_service | length > 0
+      - api_base_dir is match('^/')
+      - api_project_categories | length > 0
+      - api_project_categories | unique | length == api_project_categories | length
+      - item is match('^[a-zA-Z0-9_-]+$')
+      - api_directory_owner | length > 0
+      - api_directory_group | length > 0
+    fail_msg: "One or more API role configuration values are invalid."
+    success_msg: "API role configuration is valid."
+  loop: "{{ api_project_categories }}"
+
+- name: Install Docker Engine and Compose packages
+  ansible.builtin.apt:
+    name: "{{ api_docker_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Enable and start Docker service
+  ansible.builtin.service:
+    name: "{{ api_docker_service }}"
+    state: started
+    enabled: true
+  when: not ansible_check_mode
+
+- name: Create API base directory
+  ansible.builtin.file:
+    path: "{{ api_base_dir }}"
+    state: directory
+    owner: "{{ api_directory_owner }}"
+    group: "{{ api_directory_group }}"
+    mode: "{{ api_base_dir_mode }}"
+
+- name: Create API project category directories
+  ansible.builtin.file:
+    path: "{{ api_base_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ api_directory_owner }}"
+    group: "{{ api_directory_group }}"
+    mode: "{{ api_category_dir_mode }}"
+  loop: "{{ api_project_categories }}"
+
+- name: Verify Docker Engine
+  ansible.builtin.command:
+    cmd: docker --version
+  register: api_docker_version
+  changed_when: false
+
+- name: Verify Docker Compose
+  ansible.builtin.command:
+    cmd: docker compose version
+  register: api_compose_version
+  changed_when: false
+
+- name: Display Docker versions
+  ansible.builtin.debug:
+    msg:
+      - "{{ api_docker_version.stdout }}"
+      - "{{ api_compose_version.stdout }}"
+  when: not ansible_check_mode
