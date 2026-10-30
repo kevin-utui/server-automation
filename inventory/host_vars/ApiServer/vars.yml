@@ -1,0 +1,3 @@
+---
+ansible_user: apiserver
+ansible_become_password: "{{ vault_apiserver_become_password }}"
