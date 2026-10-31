@@ -1,0 +1,68 @@
+---
+- name: Validate supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == nginx_supported_os
+      - ansible_distribution_version is version(nginx_minimum_os_version, '>=')
+    fail_msg: >-
+      This role supports {{ nginx_supported_os }}
+      {{ nginx_minimum_os_version }} or later.
+
+- name: Validate Nginx configuration
+  ansible.builtin.assert:
+    that:
+      - nginx_api_server_name | length > 0
+      - nginx_api_listen_port | int >= 1
+      - nginx_api_listen_port | int <= 65535
+      - nginx_api_backend_host | length > 0
+      - nginx_api_backend_port | int >= 1
+      - nginx_api_backend_port | int <= 65535
+    fail_msg: "Invalid Nginx reverse-proxy configuration."
+
+- name: Install Nginx
+  ansible.builtin.apt:
+    name: "{{ nginx_package_name }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Configure API reverse-proxy site
+  ansible.builtin.template:
+    src: api-reverse-proxy.conf.j2
+    dest: "{{ nginx_api_site_available_dir }}/{{ nginx_api_site_name }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload Nginx
+
+- name: Enable API reverse-proxy site
+  ansible.builtin.file:
+    src: "{{ nginx_api_site_available_dir }}/{{ nginx_api_site_name }}"
+    dest: "{{ nginx_api_site_enabled_dir }}/{{ nginx_api_site_name }}"
+    state: link
+  notify: Reload Nginx
+
+- name: Disable default Nginx site
+  ansible.builtin.file:
+    path: "{{ nginx_api_site_enabled_dir }}/default"
+    state: absent
+  when: nginx_api_disable_default_site | bool
+  notify: Reload Nginx
+
+- name: Validate Nginx configuration
+  ansible.builtin.command:
+    cmd: nginx -t
+  changed_when: false
+
+- name: Enable and start Nginx
+  ansible.builtin.service:
+    name: "{{ nginx_service_name }}"
+    state: started
+    enabled: true
+
+- name: Verify Nginx service
+  ansible.builtin.command:
+    cmd: systemctl is-active {{ nginx_service_name }}
+  register: nginx_service_status
+  changed_when: false
+  failed_when: nginx_service_status.stdout != "active"

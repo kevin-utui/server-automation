@@ -1,0 +1,25 @@
+---
+# Supported operating system
+nginx_supported_os: Ubuntu
+nginx_minimum_os_version: "24.04"
+
+# Nginx package and service
+nginx_package_name: nginx
+nginx_service_name: nginx
+
+# API reverse proxy
+nginx_api_server_name: api.example.com
+nginx_api_listen_port: 80
+nginx_api_backend_host: 127.0.0.1
+nginx_api_backend_port: 8000
+
+# Nginx site configuration
+nginx_api_site_name: api-reverse-proxy.conf
+nginx_api_site_available_dir: /etc/nginx/sites-available
+nginx_api_site_enabled_dir: /etc/nginx/sites-enabled
+nginx_api_disable_default_site: true
+
+# Proxy request handling
+nginx_api_proxy_connect_timeout: 5s
+nginx_api_proxy_read_timeout: 60s
+nginx_api_proxy_send_timeout: 60s
