@@ -2,10 +2,13 @@
 - name: Validate application database settings
   ansible.builtin.assert:
     that:
-      - postgresql_application_database | length > 0
-      - postgresql_application_user | length > 0
-      - postgresql_application_user_password | length > 0
-    fail_msg: "Application database settings or Vault password are missing."
+      - postgresql_application_database is match('^[A-Za-z_][A-Za-z0-9_]{0,62}$')
+      - postgresql_application_user is match('^[A-Za-z_][A-Za-z0-9_]{0,62}$')
+      - postgresql_application_user_password | string | length > 0
+    fail_msg: >-
+      Invalid PostgreSQL database or user name, or missing Vault password.
+      Names must start with a letter or underscore and contain only
+      letters, numbers, and underscores, with a maximum of 63 characters.
 
 - name: Create PostgreSQL application user
   community.postgresql.postgresql_user:

@@ -18,4 +18,4 @@ postgresql_log_min_duration_statement: 1000
 postgresql_manage_application_database: false
 postgresql_application_database: appdb
 postgresql_application_user: appuser
-postgresql_application_user_password: "{{ vault_postgresql_appuser_password }}"
+postgresql_application_user_password: "{{ vault_postgresql_appuser_password | default('') }}"
