@@ -31,3 +31,15 @@ reports/*
 
 # Local Ansible Vault password file
 .vault_pass
+
+# API application environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python test and quality tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/

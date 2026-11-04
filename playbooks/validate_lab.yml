@@ -1,6 +1,6 @@
 ---
 - name: Validate Server Automation Lab
-  hosts: all
+  hosts: "applications:apiservers:databases"
   gather_facts: true
   become: false
 
@@ -21,3 +21,120 @@
           - "OS version: {{ ansible_facts['distribution_version'] }}"
           - "Python interpreter: {{ ansible_facts['python']['executable'] }}"
           - "Connectivity: {{ ping_result['ping'] }}"
+
+    - name: Inspect database service state
+      become: true
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-active
+          - "{{ {'postgresql': 'postgresql', 'mysql': 'mysql', 'mariadb': 'mariadb'}[db_engine] }}"
+      register: database_service
+      changed_when: false
+      failed_when: false
+      when: server_role == 'database'
+
+    - name: Validate database service is active
+      ansible.builtin.assert:
+        that:
+          - database_service.stdout == 'active'
+        success_msg: "{{ db_engine }} service is active."
+        fail_msg: "{{ db_engine }} service is not active."
+      when: server_role == 'database'
+
+    - name: Check Docker service state
+      become: true
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-active
+          - docker
+      register: docker_service
+      changed_when: false
+      failed_when: false
+      when: server_role in ['application', 'api']
+
+    - name: Check Nginx service state
+      become: true
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-active
+          - nginx
+      register: nginx_service
+      changed_when: false
+      failed_when: false
+      when: server_role == 'api'
+
+    - name: Validate Nginx service is active
+      ansible.builtin.assert:
+        that:
+          - nginx_service.stdout == 'active'
+        success_msg: "Nginx service is active."
+        fail_msg: "Nginx service is not active."
+      when: server_role == 'api'
+
+    - name: Validate Docker service is active
+      ansible.builtin.assert:
+        that:
+          - docker_service.stdout == 'active'
+        success_msg: "Docker service is active."
+        fail_msg: "Docker service is not active."
+      when: server_role in ['application', 'api']
+
+    - name: Check API container state
+      become: true
+      ansible.builtin.command:
+        argv:
+          - docker
+          - inspect
+          - --format
+          - "{{ '{{.State.Status}} {{.State.Health.Status}}' }}"
+          - sample-api
+      register: api_container_state
+      changed_when: false
+      when: server_role == 'api'
+
+    - name: Validate API container is running and healthy
+      ansible.builtin.assert:
+        that:
+          - api_container_state.stdout == 'running healthy'
+        success_msg: "Sample API container is running and healthy."
+        fail_msg: "Sample API container is not running and healthy."
+      when: server_role == 'api'
+
+    - name: Check direct API health endpoint
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8000/health
+        method: GET
+        status_code: 200
+        return_content: true
+      register: api_health
+      changed_when: false
+      when: server_role == 'api'
+
+    - name: Validate direct API response
+      ansible.builtin.assert:
+        that:
+          - api_health.json.status == 'healthy'
+        success_msg: "Direct API health endpoint is healthy."
+      when: server_role == 'api'
+
+    - name: Check Nginx reverse proxy health endpoint
+      ansible.builtin.uri:
+        url: http://127.0.0.1/health
+        method: GET
+        headers:
+          Host: api.example.com
+        status_code: 200
+        return_content: true
+      register: nginx_health
+      changed_when: false
+      when: server_role == 'api'
+
+    - name: Validate Nginx reverse proxy response
+      ansible.builtin.assert:
+        that:
+          - nginx_health.json.status == 'healthy'
+        success_msg: "Nginx reverse proxy is forwarding requests successfully."
+      when: server_role == 'api'
