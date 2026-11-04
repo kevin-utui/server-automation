@@ -1,0 +1,27 @@
+---
+- name: Validate MySQL application database settings
+  ansible.builtin.assert:
+    that:
+      - mysql_application_database is match('^[A-Za-z0-9_]{1,64}$')
+      - mysql_application_user is match('^[A-Za-z0-9_]{1,32}$')
+      - mysql_application_user_password | string | length > 0
+    fail_msg: >-
+      Application database settings are invalid or the Vault password
+      is missing. Use alphanumeric characters and underscores for names.
+
+- name: Create MySQL application database
+  community.mysql.mysql_db:
+    name: "{{ mysql_application_database }}"
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+  no_log: true
+
+- name: Create MySQL application user with database-specific privileges
+  community.mysql.mysql_user:
+    name: "{{ mysql_application_user }}"
+    password: "{{ mysql_application_user_password }}"
+    host: localhost
+    priv: "{{ mysql_application_database }}.*:ALL"
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+  no_log: true

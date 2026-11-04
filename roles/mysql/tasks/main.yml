@@ -42,3 +42,7 @@
     name: "{{ mysql_service_name }}"
     enabled: true
     state: started
+
+- name: Manage MySQL application database
+  ansible.builtin.import_tasks: application_database.yml
+  when: mysql_manage_application_database | bool
