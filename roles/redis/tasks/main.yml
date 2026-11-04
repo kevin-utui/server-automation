@@ -1,0 +1,149 @@
+---
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == "Ubuntu"
+      - ansible_distribution_version is version("24.04", ">=")
+    fail_msg: "This Redis role requires Ubuntu 24.04 or newer."
+
+- name: Require a Vault-managed Redis password
+  ansible.builtin.assert:
+    that:
+      - redis_auth_password | length >= 32
+    fail_msg: "A Redis Vault password of at least 32 characters is required."
+
+- name: Install Redis packages
+  ansible.builtin.apt:
+    name: "{{ redis_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Verify Redis configuration file exists
+  ansible.builtin.stat:
+    path: "{{ redis_config_file }}"
+  register: redis_config_stat
+
+- name: Require Redis configuration file
+  ansible.builtin.assert:
+    that:
+      - redis_config_stat.stat.exists
+      - redis_config_stat.stat.isreg
+
+- name: Configure Redis data directory
+  ansible.builtin.file:
+    path: "{{ redis_dir }}"
+    state: directory
+    owner: redis
+    group: redis
+    mode: "0750"
+
+- name: Configure Redis log directory
+  ansible.builtin.file:
+    path: /var/log/redis
+    state: directory
+    owner: redis
+    group: adm
+    mode: "0750"
+
+- name: Set Redis configuration permissions
+  ansible.builtin.file:
+    path: "{{ redis_config_file }}"
+    owner: root
+    group: redis
+    mode: "0640"
+
+- name: Configure Redis listening addresses
+  ansible.builtin.lineinfile:
+    path: "{{ redis_config_file }}"
+    regexp: '^\s*#?\s*bind\s+'
+    line: "bind {{ redis_bind_address }}"
+  notify: Restart Redis
+
+- name: Configure Redis port
+  ansible.builtin.lineinfile:
+    path: "{{ redis_config_file }}"
+    regexp: '^\s*#?\s*port\s+'
+    line: "port {{ redis_port }}"
+  notify: Restart Redis
+
+- name: Enable Redis protected mode
+  ansible.builtin.lineinfile:
+    path: "{{ redis_config_file }}"
+    regexp: '^\s*#?\s*protected-mode\s+'
+    line: "protected-mode {{ redis_protected_mode }}"
+  notify: Restart Redis
+
+- name: Configure Redis authentication
+  ansible.builtin.lineinfile:
+    path: "{{ redis_config_file }}"
+    regexp: '^\s*#?\s*requirepass(?:\s+.*)?$'
+    line: "requirepass {{ redis_auth_password }}"
+  no_log: true
+  notify: Restart Redis
+
+- name: Configure Redis RDB snapshot rules
+  ansible.builtin.blockinfile:
+    path: "{{ redis_config_file }}"
+    marker: "# {mark} ANSIBLE MANAGED REDIS PERSISTENCE"
+    block: |
+      save ""
+      {% for rule in redis_save_rules %}
+      save {{ rule }}
+      {% endfor %}
+  notify: Restart Redis
+
+- name: Configure Redis AOF persistence
+  ansible.builtin.lineinfile:
+    path: "{{ redis_config_file }}"
+    regexp: '^\s*#?\s*appendonly\s+'
+    line: "appendonly {{ redis_appendonly }}"
+  notify: Restart Redis
+
+- name: Configure Redis AOF fsync policy
+  ansible.builtin.lineinfile:
+    path: "{{ redis_config_file }}"
+    regexp: '^\s*#?\s*appendfsync\s+'
+    line: "appendfsync {{ redis_appendfsync }}"
+  notify: Restart Redis
+
+- name: Configure Redis maximum memory
+  ansible.builtin.lineinfile:
+    path: "{{ redis_config_file }}"
+    regexp: '^\s*#?\s*maxmemory\s+'
+    line: "maxmemory {{ redis_maxmemory }}"
+  notify: Restart Redis
+
+- name: Configure Redis eviction policy
+  ansible.builtin.lineinfile:
+    path: "{{ redis_config_file }}"
+    regexp: '^\s*#?\s*maxmemory-policy\s+'
+    line: "maxmemory-policy {{ redis_maxmemory_policy }}"
+  notify: Restart Redis
+
+- name: Configure Redis log level
+  ansible.builtin.lineinfile:
+    path: "{{ redis_config_file }}"
+    regexp: '^\s*#?\s*loglevel\s+'
+    line: "loglevel {{ redis_loglevel }}"
+  notify: Restart Redis
+
+- name: Configure Redis log file
+  ansible.builtin.lineinfile:
+    path: "{{ redis_config_file }}"
+    regexp: '^\s*#?\s*logfile\s+'
+    line: "logfile {{ redis_logfile }}"
+  notify: Restart Redis
+
+- name: Configure Redis working directory
+  ansible.builtin.lineinfile:
+    path: "{{ redis_config_file }}"
+    regexp: '^\s*#?\s*dir\s+'
+    line: "dir {{ redis_dir }}"
+  notify: Restart Redis
+
+- name: Ensure Redis service is enabled and running
+  ansible.builtin.service:
+    name: "{{ redis_service_name }}"
+    enabled: true
+    state: started

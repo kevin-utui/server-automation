@@ -1,0 +1,37 @@
+---
+# Redis role defaults for Ubuntu Server 24.04.
+
+redis_packages:
+  - redis-server
+  - redis-tools
+
+redis_service_name: redis-server
+redis_config_file: /etc/redis/redis.conf
+
+# Redis is restricted to the local machine by default.
+redis_bind_address: "127.0.0.1 ::1"
+redis_port: 6379
+redis_protected_mode: "yes"
+
+# Supply this value through Ansible Vault before enabling Redis.
+redis_auth_password: "{{ vault_redis_auth_password | default('') }}"
+
+# Redis persistence configuration
+redis_save_rules:
+  - "900 1"
+  - "300 10"
+  - "60 10000"
+
+redis_appendonly: "yes"
+redis_appendfsync: "everysec"
+
+# Redis memory management
+redis_maxmemory: "256mb"
+redis_maxmemory_policy: "noeviction"
+
+# Redis logging
+redis_loglevel: "notice"
+redis_logfile: "/var/log/redis/redis-server.log"
+
+# Redis database directory
+redis_dir: "/var/lib/redis"

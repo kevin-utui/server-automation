@@ -1,0 +1,75 @@
+---
+- name: Validate Redis persistence and recovery
+  hosts: redis
+  become: true
+  gather_facts: false
+
+  vars:
+    redis_test_key: "ansible:acceptance:recovery"
+    redis_test_value: "redis-persistence-ok"
+
+  tasks:
+    - name: Write temporary acceptance key
+      ansible.builtin.command:
+        argv:
+          - redis-cli
+          - --no-auth-warning
+          - SET
+          - "{{ redis_test_key }}"
+          - "{{ redis_test_value }}"
+          - EX
+          - "300"
+      environment:
+        REDISCLI_AUTH: "{{ vault_redis_auth_password }}"
+      register: redis_test_write
+      changed_when: redis_test_write.stdout == "OK"
+      no_log: true
+
+    - name: Force an RDB snapshot
+      ansible.builtin.command:
+        argv:
+          - redis-cli
+          - --no-auth-warning
+          - SAVE
+      environment:
+        REDISCLI_AUTH: "{{ vault_redis_auth_password }}"
+      register: redis_snapshot
+      changed_when: redis_snapshot.stdout == "OK"
+      no_log: true
+
+    - name: Restart Redis service
+      ansible.builtin.service:
+        name: redis-server
+        state: restarted
+
+    - name: Verify temporary key survived restart
+      ansible.builtin.command:
+        argv:
+          - redis-cli
+          - --no-auth-warning
+          - GET
+          - "{{ redis_test_key }}"
+      environment:
+        REDISCLI_AUTH: "{{ vault_redis_auth_password }}"
+      register: redis_recovery
+      changed_when: false
+      no_log: true
+
+    - name: Assert recovered value
+      ansible.builtin.assert:
+        that:
+          - redis_recovery.stdout == redis_test_value
+        success_msg: "Redis successfully recovered the test key after restart."
+
+    - name: Remove temporary acceptance key
+      ansible.builtin.command:
+        argv:
+          - redis-cli
+          - --no-auth-warning
+          - DEL
+          - "{{ redis_test_key }}"
+      environment:
+        REDISCLI_AUTH: "{{ vault_redis_auth_password }}"
+      register: redis_cleanup
+      changed_when: redis_cleanup.stdout == "1"
+      no_log: true
