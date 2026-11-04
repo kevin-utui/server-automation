@@ -15,6 +15,7 @@
     name: "{{ postgresql_application_user }}"
     password: "{{ postgresql_application_user_password }}"
     role_attr_flags: "LOGIN,NOSUPERUSER,NOCREATEDB,NOCREATEROLE"
+    no_password_changes: true
     state: present
   become: true
   become_user: postgres

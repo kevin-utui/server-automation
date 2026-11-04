@@ -6,7 +6,7 @@ The PostgreSQL role automates the installation and configuration of PostgreSQL o
 
 ## 2. Current Lab Configuration
 
-- **Inventory group:** `databases`
+- **Inventory group:** `postgresql_servers` (child of `databases`)
 - **Target host:** `PostgreSqlServer`
 - **Operating system:** Ubuntu Server 24.04
 - **PostgreSQL cluster:** `16/main`
@@ -17,7 +17,7 @@ The PostgreSQL role automates the installation and configuration of PostgreSQL o
 
 ## 3. Implemented Automation
 
-The PostgreSQL role currently includes:
+The PostgreSQL role includes:
 
 1. Validation of the supported operating system.
 2. Installation of PostgreSQL and `postgresql-contrib`.
@@ -31,18 +31,18 @@ The PostgreSQL role currently includes:
 
 ### 3.1 Application Database Provisioning
 
-The optional task file `roles/postgresql/tasks/application_database.yml` has been implemented.
+The optional task file `roles/postgresql/tasks/application_database.yml` implements application database and user management.
 
 It supports:
 
 - Validation of database and username formats.
 - Validation that the application password is available through Ansible Vault.
-- Creation of an application database user with restricted attributes:
+- Management of an application database user with restricted attributes:
   - `LOGIN`
   - `NOSUPERUSER`
   - `NOCREATEDB`
   - `NOCREATEROLE`
-- Creation of the application database with the application user as its owner.
+- Management of an application database with the application user as its owner.
 
 The feature is controlled by:
 
@@ -65,9 +65,9 @@ vault_postgresql_appuser_password
 
 Passwords must never be stored in plaintext or exposed in execution logs.
 
-**Validation status:** The automation code has passed syntax and YAML validation, but application database provisioning has not yet been runtime-validated.
+**Existing resources:** The `appdb` database and `appuser` account existed before the Ansible application provisioning test. They were verified and reconciled against the intended configuration; this milestone does not claim that they were newly created.
 
-Existing `appdb` and `appuser` objects were identified during preliminary checks. They have been preserved and must not be modified or replaced without a separate review and explicit approval.
+**Password reconciliation:** The user task uses `no_password_changes: true`. This avoids repeated change reports caused by password comparison limitations in `community.postgresql` 3.3.0. Existing account passwords are not automatically rotated by this task. Password rotation must be handled through a separate, explicitly controlled procedure.
 
 ## 4. Security Decisions
 
@@ -75,15 +75,16 @@ Existing `appdb` and `appuser` objects were identified during preliminary checks
 - Remote database access remains disabled.
 - Application database provisioning is disabled by default.
 - Application credentials are managed through Ansible Vault.
-- The application user is configured without superuser or database/role creation privileges.
-- Application credentials must not be exposed in logs.
+- The application user has no superuser, database-creation or role-creation privileges.
+- Application credentials are protected with `no_log` in the provisioning and authentication tasks.
+- The application account was tested for database operations and denied access to the PostgreSQL authentication catalog (`pg_authid`).
 - No firewall exceptions or remote authentication changes have been introduced.
 
-Remote access must not be enabled until the approved application/API network requirements, authentication approach, and database privileges have been defined.
+Remote access must not be enabled until the approved application/API network requirements, authentication approach and database privileges have been defined.
 
 ## 5. Validation Performed
 
-The following baseline validations have been completed:
+### 5.1 Baseline validation
 
 - Ansible playbook syntax check passed.
 - PostgreSQL installation completed successfully.
@@ -91,10 +92,39 @@ The following baseline validations have been completed:
 - PostgreSQL service reported active.
 - Port `5432` was verified listening on `127.0.0.1`.
 - Configuration values were verified.
-- The second playbook run completed with `changed=0` and `failed=0`.
+- Baseline deployment was verified as idempotent.
 - The target Python PostgreSQL driver dependency was verified.
 
-Additional validation status:
+### 5.2 Application validation
+
+The following application-level tests were completed:
+
+- Vault password successfully authenticated as `appuser` against `appdb`.
+- A temporary table was created in the `public` schema.
+- A test record was inserted and read successfully.
+- The temporary table was dropped successfully.
+- Access to `pg_catalog.pg_authid` was denied to the application account.
+- The authentication test was repeated successfully after application provisioning.
+
+### 5.3 Provisioning and idempotency
+
+Application provisioning was executed against `PostgreSqlServer` only, with `db_engine=postgresql` and `postgresql_manage_application_database=true`.
+
+The first run reconciled the application user and reported one change. Investigation identified the password-comparison behaviour of `community.postgresql` version `3.3.0`.
+
+After adding `no_password_changes: true`, the subsequent provisioning run completed with:
+
+```text
+ok=14
+changed=0
+unreachable=0
+failed=0
+skipped=1
+```
+
+The Redis role was skipped as expected because Redis is independently managed and disabled in the database group configuration.
+
+### 5.4 Validation summary
 
 | Component | Status |
 |---|---|
@@ -104,7 +134,11 @@ Additional validation status:
 | Slow-query configuration | Validated |
 | Baseline idempotency | Validated |
 | Application provisioning syntax | Validated |
-| Application provisioning runtime | Pending |
+| Application database and user reconciliation | Validated |
+| Vault-based application authentication | Passed |
+| Application CRUD operations | Passed |
+| Authentication catalog access restriction | Passed |
+| Application provisioning idempotency | Passed (`changed=0`) |
 | Remote access configuration | Not implemented |
 
 ## 6. Execution
@@ -125,41 +159,44 @@ db_redis_enabled: false
 ```bash
 ansible-playbook playbooks/database.yml \
   --limit PostgreSqlServer \
-  -e postgresql_manage_application_database=false
+  --extra-vars "db_engine=postgresql postgresql_manage_application_database=false"
 ```
 
-### 6.2 Validate syntax and preview changes
+### 6.2 Validate syntax
 
 ```bash
-ansible-playbook --syntax-check playbooks/database.yml
-
-ansible-playbook playbooks/database.yml \
-  --limit PostgreSqlServer \
-  --check \
-  -e postgresql_manage_application_database=false
+ansible-playbook --syntax-check playbooks/database.yml \
+  --extra-vars "db_engine=postgresql"
 ```
 
-### 6.3 Application provisioning
+### 6.3 Enable application provisioning
 
-Application database and user management must remain disabled until:
+Application provisioning is opt-in. Before enabling it, review existing database ownership, account attributes and intended privileges.
 
-1. The existing database and user have been reviewed.
-2. The intended ownership and privilege requirements have been confirmed.
-3. The provisioning tasks have been reviewed against the existing PostgreSQL objects.
-4. Explicit approval has been obtained for the intended changes.
+For the validated lab configuration:
 
-Do not use the baseline deployment procedure to change application credentials or existing database data.
+```bash
+ansible-playbook playbooks/database.yml \
+  --limit PostgreSqlServer \
+  --extra-vars "db_engine=postgresql postgresql_manage_application_database=true"
+```
+
+Always use `--limit PostgreSqlServer` when selecting this engine through the shared database playbook.
+
+Password rotation is not performed automatically for existing users because `no_password_changes` is enabled. Use a separately reviewed and approved rotation procedure.
 
 ## 7. Outstanding Activities
 
-- Review application provisioning behaviour against the existing `appdb` and `appuser` objects.
-- Define and approve the required application database privileges.
-- Obtain approval before runtime-testing application provisioning.
-- Validate application connectivity when application/API requirements are available.
-- Update this document with runtime test results after validation.
+- Define and approve the application/API connectivity and database access requirements.
+- Validate application connectivity when the API integration design is available.
+- Define any additional application-specific database privileges before granting them.
+- Develop a controlled application credential rotation procedure.
+- Keep remote PostgreSQL access disabled until the network and security design is approved.
 
 ## 8. Completion Assessment
 
-The PostgreSQL server installation and baseline configuration are implemented and validated. Optional application database provisioning has been implemented at the Ansible role level, but remains pending runtime validation and approval.
+The PostgreSQL installation, baseline configuration and optional application database provisioning have been implemented and runtime-validated in the lab.
 
-The role is suitable for controlled PostgreSQL baseline deployment in the lab, with application provisioning and remote access remaining disabled by default.
+The existing appdb and appuser resources were reconciled successfully. Authentication, CRUD operations, restricted catalog access and provisioning idempotency were verified.
+
+The role is suitable for controlled PostgreSQL baseline deployment in the lab. Application provisioning remains disabled by default, remote access remains disabled, and credential rotation requires a separate controlled procedure.
