@@ -20,7 +20,9 @@ selects this role through the inventory variable `db_engine`.
 
 ## Managed configuration
 
-The role installs `mariadb-server` and `mariadb-client`, prepares the
+The role installs `mariadb-server`, `mariadb-client`, and
+`python3-pymysql` (the Python driver required by Ansible database modules).
+It prepares the
 slow-query log directory, deploys the server configuration, and ensures
 that the MariaDB service is enabled and running.
 
@@ -38,12 +40,36 @@ Expected settings:
 
 Configuration changes notify the MariaDB restart handler.
 
+## Optional application database and user
+
+Application database provisioning is controlled by:
+
+`mariadb_manage_application_database: false`
+
+The feature remains disabled unless explicitly enabled.
+
+Default settings:
+- Database: `appdb`
+- Application user: `appuser`
+- Password variable: `vault_mariadb_appuser_password`
+
+The password is stored in the encrypted host Vault file:
+`inventory/host_vars/MariaDBServer/vault.yml`
+
+When enabled, the role validates the database and username, checks that
+the Vault password is present, creates the database, and creates the
+application user for `localhost`.
+
+The application user receives privileges on the configured database
+only (`<database>.*`), not global database administration privileges.
+Credential-sensitive tasks use `no_log`.
+
 ## Security boundaries
 
 MariaDB listens on loopback by default. This role does not configure
-remote database access, application database users, application
-credentials, or firewall exceptions. Review connectivity requirements,
-access controls, and firewall rules before enabling remote access.
+remote database access or firewall exceptions. Review connectivity
+requirements, access controls, and firewall rules before considering
+remote access.
 
 ## Deployment
 
@@ -69,6 +95,38 @@ listener was `127.0.0.1:3306`, and the managed slow-query settings were
 present. The log directory had owner `mysql`, group `adm`, and mode
 `0750`. A second Ansible run reported `changed=0` and `failed=0`.
 
+### Application database provisioning
+
+Status: **Successfully deployed and validated.**
+
+Explicit approval was obtained before creating `appdb` and `appuser`
+on `MariaDBServer`. Provisioning was enabled only for the deployment
+run using the Ansible extra variable.
+
+Validation results:
+
+| Test | Result |
+|---|---|
+| Application database `appdb` verified and reconciled | PASS |
+| Application user `appuser@localhost` verified and reconciled | PASS |
+| TCP authentication using the application account | PASS |
+| Create, insert, select and drop operations in `appdb` | PASS |
+| Access to `mysql.user` denied | PASS |
+| Global privileges limited to `USAGE` | PASS |
+| Application privileges scoped to `appdb.*` | PASS |
+| Global grant option not assigned | PASS |
+| Repeat provisioning run reported `changed=0` | PASS |
+
+The application user can perform database operations within `appdb`
+but cannot read the MariaDB system users table. No global administrative
+privileges or grant option were assigned.
+
+The role default remains
+`mariadb_manage_application_database: false`. Provisioning is opt-in
+and is not automatically enabled for future deployments.
+
+Passwords and credential hashes are excluded from this documentation.
+
 Useful checks:
 
 ```bash
@@ -88,6 +146,8 @@ supported predictive checks, followed by deployment and runtime tests.
 
 ## Scope
 
-This role manages the MariaDB server baseline only. Application schemas,
-users, passwords, backups, replication, and production firewall changes
+This role manages the MariaDB server baseline and provides optional,
+explicitly enabled application database and user provisioning.
+
+Backups, replication, remote access, and production firewall changes
 require separate, explicitly reviewed automation.

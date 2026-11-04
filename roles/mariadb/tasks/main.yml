@@ -43,3 +43,7 @@
     name: "{{ mariadb_service_name }}"
     enabled: true
     state: started
+
+- name: Manage MariaDB application database
+  ansible.builtin.import_tasks: application_database.yml
+  when: mariadb_manage_application_database | bool

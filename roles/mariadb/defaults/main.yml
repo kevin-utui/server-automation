@@ -4,6 +4,7 @@
 mariadb_packages:
   - mariadb-server
   - mariadb-client
+  - python3-pymysql
 
 mariadb_service_name: mariadb
 
@@ -15,3 +16,10 @@ mariadb_port: 3306
 mariadb_slow_query_time: 1
 mariadb_slow_query_log_enabled: true
 mariadb_slow_query_log_file: /var/log/mysql/mariadb-slow.log
+
+# Optional application database management.
+# Keep disabled unless explicitly enabled for a deployment.
+mariadb_manage_application_database: false
+mariadb_application_database: appdb
+mariadb_application_user: appuser
+mariadb_application_user_password: "{{ vault_mariadb_appuser_password | default('') }}"
