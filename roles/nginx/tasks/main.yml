@@ -66,3 +66,32 @@
   register: nginx_service_status
   changed_when: false
   failed_when: nginx_service_status.stdout != "active"
+
+- name: Discover active and rotated custom API log files
+  ansible.builtin.find:
+    paths: /var/log/nginx
+    patterns:
+      - "api-access.log*"
+      - "api-error.log*"
+    file_type: file
+    recurse: false
+  register: nginx_api_log_files
+
+- name: Verify custom API log files exist
+  ansible.builtin.assert:
+    that:
+      - nginx_api_log_files.matched >= 2
+    fail_msg: >-
+      Expected active custom API access and error log files
+      were not found in /var/log/nginx.
+
+- name: Enforce ownership and permissions on custom API logs
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: file
+    owner: www-data
+    group: adm
+    mode: "0640"
+  loop: "{{ nginx_api_log_files.files }}"
+  loop_control:
+    label: "{{ item.path }}"

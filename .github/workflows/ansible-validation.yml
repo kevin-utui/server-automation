@@ -1,0 +1,50 @@
+name: Ansible Validation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-validation:
+    name: Ansible Playbook Syntax
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Ansible
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ansible-core==2.16.3
+
+      - name: Configure temporary Ansible settings
+        run: |
+          cat > "$RUNNER_TEMP/ansible-ci.cfg" <<EOF_CONFIG
+          [defaults]
+          roles_path = $GITHUB_WORKSPACE/roles
+          host_key_checking = False
+          retry_files_enabled = False
+          interpreter_python = auto_silent
+          EOF_CONFIG
+          echo "ANSIBLE_CONFIG=$RUNNER_TEMP/ansible-ci.cfg" >> "$GITHUB_ENV"
+
+      - name: Validate all playbooks
+        run: |
+          set -euo pipefail
+
+          for playbook in playbooks/*.yml; do
+            echo "Checking $playbook"
+            ansible-playbook --syntax-check -i localhost, "$playbook"
+          done
+
+          echo "All Ansible playbooks passed syntax validation."

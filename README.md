@@ -204,7 +204,6 @@ Detailed implementation and validation records are maintained in `docs/`, includ
 
 The laboratory infrastructure, Ansible configuration, core automation roles, service configurations and integrated validation are implemented.
 
-Remaining activities include formal handover, isolated Redis AOF recovery
-testing, GitLab CI/CD integration when the appropriate account is available,
-and any additional security or resilience tests formally retained in the
-project acceptance scope.
+Remaining activities include GitHub Actions CI/CD integration, final
+documentation review and formal handover, and any additional security or
+resilience tests formally retained in the project acceptance scope.

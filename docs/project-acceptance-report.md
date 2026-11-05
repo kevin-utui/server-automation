@@ -62,11 +62,11 @@ and an Nginx reverse proxy.
 | 2 | Planeamento técnico | Complete |
 | 3 | Criação das máquinas virtuais | Complete |
 | 4 | Instalação/configuração do Ansible | Complete |
-| 5 | Desenvolvimento dos playbooks | Core implementation and documentation complete; formal handover pending |
-| 6 | CI/CD GitLab | Deferred pending access to the correct personal GitLab account |
-| 7 | Segurança/performance | Partially implemented; review findings and further work remain |
-| 8 | Testes/validação | Core validation and idempotency checks passed; advanced tests remain |
-| 9 | Documentação/entrega | Documentation complete; formal handover pending |
+| 5 | Desenvolvimento dos playbooks | Core implementation and documentation complete |
+| 6 | CI/CD GitHub Actions | GitHub repository created; remote connection and pipeline implementation pending |
+| 7 | Segurança/performance | Lab controls implemented; production security findings remain documented and deferred |
+| 8 | Testes/validação | Core, idempotency, API resilience, logging and Redis persistence validation completed; historical integrated validation documented |
+| 9 | Documentação/entrega | Documentation substantially complete; final report review and handover pending |
 
 ## 5. Validation Evidence
 
@@ -105,9 +105,15 @@ during the final validation runs.
 
 Redis was deployed and runtime-tested separately on RedisServer.
 Authentication, loopback-only listening, service state, basic data
-operations, persistence, restart recovery and idempotency were
-successfully validated. A separate isolated AOF recovery test remains
-outstanding.
+operations, RDB persistence, restart recovery and idempotency were
+successfully validated.
+
+A separate isolated AOF recovery test also passed. The test copied the
+active multipart AOF dataset to a temporary directory, started an
+independent Redis 7.0.15 instance with RDB snapshots disabled, and
+successfully recovered a fresh test marker from the copied AOF files.
+The isolated instance, temporary files and test marker were subsequently
+removed. The original Redis data remained intact.
 
 ### 5.3 Application Platform
 
@@ -132,32 +138,35 @@ ApiServer validation confirmed:
 - Nginx 1.24.0 active.
 - Nginx reverse proxy returned HTTP 200 for the API health endpoint.
 - Nginx configuration syntax validated successfully.
-- Docker automatic restart policy tested using a disposable container.
-- Test process exited unexpectedly with code 1.
-- Docker automatically restarted the disposable container;
-  RestartCount increased to 1.
-- The original sample-api container remained running and healthy
-  throughout the isolated restart-policy test.
-- Final API health endpoint verification returned HTTP 200.
+- Docker restart-policy behaviour validated using a disposable container.
+- Actual `sample-api` crash-recovery test completed: the Uvicorn process
+  was terminated with SIGTERM and Docker restarted the container.
+- Recovery completed in approximately 9 seconds.
+- Container returned to running and healthy state; RestartCount increased
+  from 0 to 1 and restart policy remained `unless-stopped`.
+- Nginx reverse-proxy health endpoint returned HTTP 200 after recovery.
+- API-06, API-07, API-08, API-09, API-10 and API-11 acceptance activities
+  are documented as complete in `docs/api-platform-security-review.md`.
 
 API and Nginx role idempotency checks completed with zero changes.
 
-### 5.5 Container Restart-Policy Validation
+### 5.5 Actual API Crash-Recovery Validation
 
-A controlled test was performed using a disposable container created
-from the sample API image with the `unless-stopped` restart policy.
+An application-specific recovery test was performed against the actual
+`sample-api` container. The Uvicorn process running as the application
+user was terminated with SIGTERM.
 
-The test process exited with code 1. Docker automatically restarted
-the disposable container, confirming that the configured restart
-policy functions as expected.
+Docker automatically restarted the container under its configured
+`unless-stopped` policy. Recovery completed in approximately 9 seconds.
+The container returned to running and healthy state, with RestartCount
+increasing from 0 to 1.
 
-The test container was subsequently removed. The actual `sample-api`
-container remained healthy, and its API health endpoint returned
-HTTP 200.
+The Nginx reverse-proxy health endpoint returned HTTP 200 after recovery.
+This test is documented as API-11 and passed.
 
-This test validates Docker restart-policy behaviour independently.
-It does not constitute an application-specific crash-recovery test
-of the actual `sample-api` container.
+A separate disposable-container restart-policy test was also performed
+previously. The actual application recovery test provides the stronger
+application-specific acceptance evidence.
 
 ### 5.6 Container Log Rotation Validation
 
@@ -206,32 +215,48 @@ The acceptance test successfully recovered a temporary key after
 forcing an RDB snapshot and restarting Redis. The temporary key
 was subsequently removed.
 
-A separate isolated AOF recovery test has not yet been performed.
+An isolated AOF recovery test passed using a copied multipart AOF
+dataset and a separate Redis instance with RDB snapshots disabled.
+The recovery marker was successfully restored. All temporary test
+resources and the live test marker were removed after validation.
+
 Redis remains intended for local access only; external access has
 not been configured or approved.
 
 ### 6.2 Security and Performance
 
-The security and performance review identified work that remains
-before production consideration:
+The security review identified the following outstanding findings:
 
-- TLS/HTTPS is not configured.
-- API authentication has not been implemented.
-- API-to-database connectivity and access requirements require
-  an explicit design.
-- Firewall policy remains outside the current laboratory scope.
-- Nginx currently uses the placeholder hostname `api.example.com`.
-- Nginx listens on all interfaces.
-- Application-specific crash and recovery testing of the actual
-  `sample-api` container remains outstanding. Docker's restart policy
-  was verified independently using a disposable test container.
+- API-01 — Host firewall: pending network design and approval.
+- API-02 — TLS/HTTPS: pending hostname, DNS and certificate decisions.
+- API-03 — API authentication and authorization: pending application
+  requirements.
+- API-04 — API-to-database connectivity: pending integration and network
+  design.
+- API-05 — Historical MariaDB installation on PostgreSqlServer:
+  package cleanup is complete; residual-data and backup review remain
+  pending.
 
-These findings are not represented as completed controls.
+Nginx continues to use the placeholder hostname `api.example.com` and
+listen on all interfaces. Both settings require production-specific
+review.
+
+API-06 through API-11 are documented as complete in
+`docs/api-platform-security-review.md`. API-09 was closed through an
+approved design decision distinguishing project-file staging from
+application deployment; no additional staging variable was required.
+
+The outstanding findings are not represented as completed security
+controls. They remain subject to design decisions, requirements and
+approval before production deployment.
 
 ### 6.3 CI/CD
 
-GitLab CI/CD implementation is deferred until the correct personal
-GitLab account is available.
+A personal GitHub repository is available and currently empty. Local remote
+configuration, SSH authentication, pipeline configuration and pipeline
+execution remain to be completed. The planned initial pipeline will validate
+Ansible syntax and project structure only; automatic deployment to
+managed servers is outside its initial scope.
 
 ### 6.4 Production Readiness
 
@@ -246,17 +271,20 @@ and operational change control.
 The core laboratory automation and integrated health validation
 have been implemented successfully.
 
-The evidence supports completion of the core DB, application,
-API and reverse-proxy automation paths. It also demonstrates
-successful integrated validation and idempotency checks.
+The evidence supports completion of the core database, application,
+API and reverse-proxy automation paths. Historical integrated validation
+and idempotency checks passed. Separate acceptance evidence now also
+covers Redis AOF recovery, API crash recovery, container hardening,
+dependency reproducibility and sustained log rotation.
 
-However, the project remains subject to the outstanding work
-identified in this report. In particular, isolated AOF recovery
-testing, advanced resilience testing, security review actions,
-formal handover and GitLab CI/CD remain open.
+Remaining laboratory closure activities are GitHub Actions implementation,
+final documentation review and formal handover. Production security
+findings remain documented and deferred where they require architecture,
+business requirements or explicit approval.
 
-**Assessment:** Core laboratory implementation validated;
-final project closure and production readiness are not yet approved.
+**Assessment:** Core laboratory implementation and the documented
+acceptance tests are substantially complete. GitHub Actions and formal
+handover remain open. Production readiness is not approved.
 
 ## 8. Supporting Documentation
 

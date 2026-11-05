@@ -395,74 +395,130 @@ Priority: Medium
 
 Evidence:
 - Standard Nginx access and error logs use www-data:adm with mode 0640.
-- Custom API logs were observed as root:root with mode 0644.
-- The Nginx logrotate policy covers *.log files.
+- The custom API error log and an older rotated access log initially had
+  inconsistent ownership and permissions.
+- Ubuntu's existing Nginx logrotate policy covers /var/log/nginx/*.log and
+  creates new logs with mode 0640, owner www-data, and group adm.
 
-Risk:
-The custom log files have broader read permissions than the standard Nginx
-logs. Access logs may contain sensitive request metadata.
-
-Recommendation:
-- Define consistent ownership and permissions for custom logs.
-- Manage the policy through Ansible.
-- Confirm logrotate creates rotated files with the intended ownership and mode.
-- Review retention and access requirements.
+Remediation:
+- Updated the Ansible Nginx role to discover active and rotated custom API
+  log files and enforce www-data:adm ownership with mode 0640.
+- Applied the role to ApiServer.
+- Confirmed the second Ansible execution returned changed=0.
+- Forced a controlled Nginx log rotation using the existing Ubuntu policy.
+- Verified that the new active log and archived logs retained the intended
+  ownership and permissions.
+- Generated another API health request after rotation and confirmed HTTP 200.
+- Verified that the new active access log received the request and Nginx
+  remained active.
 
 Acceptance criteria:
-- Custom logs follow the approved ownership and permission policy.
-- Rotated logs preserve the intended policy.
-- Nginx continues writing logs after rotation.
+- Custom logs follow the approved ownership and permission policy: PASS.
+- Rotated logs preserve the intended policy: PASS.
+- Nginx continues writing logs after rotation: PASS.
+- Ansible deployment is idempotent: PASS.
 
-Status: Pending Ansible remediation.
+Status: Complete — remediation and acceptance testing passed.
 
 ### API-07 — Default container capabilities not explicitly dropped
 
 Priority: Medium
 
 Evidence:
-- No additional capabilities are added.
-- The default Docker capability set remains in place.
+- The sample API runs as the non-root user appuser.
+- The container is not privileged and uses a read-only root filesystem.
+- Before remediation, Docker's default capabilities were not explicitly
+  restricted.
+- The application uses FastAPI and Uvicorn, listening on port 8000.
+  No application requirement for additional Linux capabilities was identified.
 
-Risk:
-The container retains capabilities that may not be required by the sample API.
-
-Recommendation:
-- Test dropping all Linux capabilities.
-- Add back only capabilities proven necessary.
-- Validate application startup, health checks, and normal operation.
+Remediation:
+- Updated the sample API Compose configuration with cap_drop: ALL.
+- Staged the updated configuration on ApiServer.
+- Validated the effective Compose configuration before deployment.
+- Recreated the sample API container with all Linux capabilities dropped.
+- Confirmed CapDrop contains ALL and CapAdd is empty.
+- Confirmed the container remains non-privileged and runs as appuser.
+- Confirmed the read-only root filesystem remains enabled.
+- Verified the container is running and healthy, with RestartCount 0.
+- Verified the direct API health endpoint returns HTTP 200.
+- Verified the Nginx reverse-proxy health endpoint returns HTTP 200.
+- Confirmed application startup and health requests in the container logs.
+- Repeated the Ansible deployment and confirmed changed=0.
 
 Acceptance criteria:
-- The sample API runs successfully with the minimum required capabilities.
-- The Compose security policy is documented.
+- All Linux capabilities are dropped: PASS.
+- No additional capabilities are added: PASS.
+- Application starts and remains healthy: PASS.
+- Direct API health endpoint returns HTTP 200: PASS.
+- Nginx reverse proxy remains functional: PASS.
+- Ansible deployment is idempotent: PASS.
 
-Status: Pending controlled testing.
+Status: Complete — remediation and acceptance testing passed.
 
 ### API-08 — Container image and dependency reproducibility
 
 Priority: Medium
 
 Evidence:
-- Dockerfile uses the floating python:3.12-slim base-image tag.
-- FastAPI and Uvicorn versions are pinned.
-- Transitive Python dependencies are not fully locked.
+- The original Dockerfile used the floating python:3.12-slim base-image tag.
+- FastAPI and Uvicorn were pinned, but transitive Python dependencies
+  were not fully locked.
+- The base image is now pinned to the verified linux/amd64 manifest digest:
+  sha256:05a994d2344eb364cc186910f4fc8786a38215f39f00d0acc25bff33a08f4177.
+- A requirements.lock file was generated using pip-tools 7.6.2.
+- The lock file contains 18 resolved Python packages with SHA-256 hashes
+  (604 package hash entries).
+- The Dockerfile installs dependencies from requirements.lock using
+  pip's --require-hashes option.
+- A pip dry-run with --require-hashes and --only-binary=:all: completed
+  successfully before the Docker build.
+- A fresh candidate image was built successfully using the pinned base
+  image and hash-locked dependencies.
+- The candidate container ran as appuser with a read-only root filesystem,
+  256 MiB memory limit, 0.5 CPU limit, all Linux capabilities dropped,
+  no-new-privileges enabled, and localhost-only port publication.
+- Candidate API tests passed:
+  - /health returned HTTP 200.
+  - / returned HTTP 200.
+- The candidate's installed package versions matched the locked dependency
+  set.
+- The original sample-api container was not replaced or redeployed.
+  Its container and image IDs remained unchanged, it stayed healthy,
+  and both direct and Nginx-proxied health checks returned HTTP 200.
 
 Risk:
-A future rebuild may retrieve different base-image or transitive dependency
-versions, changing the resulting image and potentially introducing
-unexpected vulnerabilities or incompatibilities.
+A future rebuild using uncontrolled base-image or dependency versions may
+produce a different image, potentially introducing vulnerabilities or
+incompatibilities.
 
 Recommendation:
-- Pin the base image by digest.
-- Use a fully resolved dependency lock file.
-- Define a controlled image update and vulnerability-review process.
-- Rebuild and retest images before promotion.
+- Keep the base image pinned by digest and application dependencies
+  hash-locked.
+- Review and test base-image and dependency updates before promotion.
+- Establish an ongoing vulnerability-review and image-update process.
+- Rebuild and retest candidate images before replacing the running service.
 
 Acceptance criteria:
-- Builds use controlled base-image versions.
-- Application dependencies are reproducible.
-- Image updates are reviewed and tested.
+- Builds use a controlled base-image version: PASS.
+- Application dependencies are reproducible and hash-verified: PASS.
+- A fresh candidate image builds and passes runtime endpoint tests: PASS.
+- The existing service remains unaffected during candidate validation: PASS.
+- Ongoing image-update and vulnerability-review governance remains
+  an operational responsibility.
 
-Status: Pending build-hardening work.
+Implementation notes:
+- The pinned base-image digest is for linux/amd64 and must be reviewed
+  separately if the deployment architecture changes.
+- The Docker build completed using Docker's legacy builder. The builder
+  emitted a deprecation warning because Buildx is not installed; this
+  did not prevent the candidate build or validation.
+- The candidate was tested separately on localhost port 18000.
+  It was not promoted to the sample-api:1.0.0 production-like lab service.
+
+Status: Complete — current image and dependency reproducibility
+hardening implemented and candidate validation passed. Ongoing
+update and vulnerability-review governance remains operational work.
 
 ### API-09 — Project files staged when deployment is disabled
 
@@ -476,67 +532,112 @@ Risk:
 The variable name may lead operators to assume that no project files are
 transferred when deployment is disabled.
 
-Recommendation:
-- Decide whether file staging should have a separate control variable.
-- Document the distinction between staging and deployment.
+Approved design decision:
+- Retain project-file staging as an independent preparation operation.
+- `api_deploy_enabled` controls only application deployment.
+- Its default remains `false`.
+- When disabled, the role may install/configure Docker, create project
+  directories and stage project files, but does not build or start the
+  sample API container.
+- When enabled, the role validates Compose configuration, builds/deploys
+  the application and checks its health endpoint.
+- No additional staging variable is required.
 
 Acceptance criteria:
-- Variable behavior is explicit and documented.
-- Check-mode and normal execution match the approved behavior.
+- Variable behavior is explicit and documented: PASS.
+- Deployment remains disabled by default: PASS.
+- Deployment tasks are conditional on `api_deploy_enabled`: PASS.
+- Check-mode and normal execution behavior are documented separately;
+  check-mode is not treated as proof of deployment.
 
-Status: Pending design decision.
+Validation evidence:
+- `roles/api/defaults/main.yml` sets `api_deploy_enabled: false`.
+- `roles/api/tasks/main.yml` stages project files before the conditional
+  deployment include.
+- `roles/api/tasks/deploy_sample.yml` contains Compose validation,
+  deployment and health-check tasks.
 
-### API-10 — Container log rotation stress test outstanding
+Status: Complete — design decision documented; no code change required.
+
+### API-10 — Container log rotation stress test
 
 Priority: Medium
 
 Evidence:
-- Docker logging limits are configured.
-- Actual rotation under sustained log generation has not been tested.
+- Docker uses the json-file logging driver with a 10 MB maximum
+  file size, a maximum of three retained files, and compression enabled.
+- A controlled disposable-container rotation test passed.
+- A sustained logging test was performed against the actual sample-api
+  container using 4,200 HTTP requests with 8,000-character query strings.
+- All 4,200 requests returned HTTP 200, with zero failed requests.
+  The test ran for approximately 71 seconds at 59.21 requests per second.
+- Docker retained exactly three log files: one active file and two
+  compressed archives.
+- The two compressed archives had original uncompressed sizes of
+  10,001,481 bytes and 10,001,594 bytes respectively.
+- Compression reduced the archives to 22,052 bytes and 22,063 bytes.
+- Docker log retrieval remained functional after rotation.
+- The API continued returning HTTP 200 after rotation. The container
+  remained running and healthy.
+- Approximately 12 GB of disk space remained available after the test.
 
 Risk:
-Configuration validation alone does not prove that rotation behaves as
-expected during sustained application logging.
+The configured logging policy has been validated under controlled
+sustained application logging. This test does not represent every
+possible production logging workload.
 
 Recommendation:
-- Perform a controlled test in the laboratory.
-- Generate sufficient test output to trigger rotation.
-- Verify file count, size, compression, and continued logging.
-- Avoid generating excessive disk usage.
+- Retain the configured Docker logging limits.
+- Monitor container log volume and host disk capacity during operation.
+- Reassess the limits if application logging volume changes materially.
 
 Acceptance criteria:
-- Rotation occurs at the configured size.
-- Retained file count is within the configured limit.
-- Compressed files are readable.
-- The container continues logging after rotation.
+- Rotation occurs at approximately the configured 10 MB threshold: PASS.
+- Retained file count does not exceed three: PASS.
+- Rotated archives are compressed and readable: PASS.
+- Docker log retrieval remains functional after rotation: PASS.
+- The API continues operating and logging after rotation: PASS.
+- Sustained test traffic completes without failed requests: PASS.
 
-Status: Pending test.
+Status: Complete — sustained logging stress test passed against the
+actual sample-api container.
 
-### API-11 — Container crash recovery test outstanding
+### API-11 — Container crash recovery
 
 Priority: Medium
 
 Evidence:
-- Restart policy is unless-stopped.
-- A normal container restart was tested.
-- Recovery after an unexpected process/container failure has not been tested.
+- The sample API uses the Docker restart policy unless-stopped.
+- A controlled disposable-container test previously confirmed that Docker
+  restarts a container after its main process exits with code 1.
+- The actual sample-api container was subsequently tested.
+- Before the test, the container was running and healthy, with RestartCount 0.
+- Uvicorn was sent SIGTERM as the configured non-root application user
+  (UID 999), causing the main application process to shut down gracefully.
+- Docker automatically restarted the actual sample-api container.
+- RestartCount increased from 0 to 1.
+- The container returned to running and healthy status.
+- The measured recovery time was 9 seconds.
+- Application logs confirmed Uvicorn shutdown followed by a fresh startup.
+- The direct API health endpoint returned HTTP 200 after recovery.
+- The Nginx reverse-proxy health endpoint also returned HTTP 200.
+- The restart policy remained unless-stopped.
 
-Risk:
-A configured restart policy does not by itself prove recovery behavior
-under failure conditions.
-
-Recommendation:
-- Perform a controlled failure test in the laboratory.
-- Verify Docker restarts the container as expected.
-- Verify the API health endpoint recovers.
-- Record recovery time and logs.
+Test limitation:
+- An earlier SIGKILL issued through the Docker CLI left the container
+  stopped and did not demonstrate automatic recovery. The container was
+  manually started and restored before the successful process-level test.
+- The successful SIGTERM test is the acceptance evidence for this finding.
 
 Acceptance criteria:
-- The container returns to running and healthy state after the approved test.
-- Nginx can reach the API after recovery.
-- No persistent data or configuration is lost.
+- The actual sample API recovers after application-process termination: PASS.
+- Docker automatically restarts the container: PASS.
+- The container returns to running and healthy status: PASS.
+- Recovery completes within the observed 9 seconds: PASS.
+- Nginx can reach the API after recovery: PASS.
+- No application configuration or persistent data was changed: PASS.
 
-Status: Pending test.
+Status: Complete — actual sample API crash-recovery testing passed.
 
 ## 6. Remediation order
 

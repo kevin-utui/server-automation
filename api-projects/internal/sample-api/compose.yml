@@ -22,6 +22,9 @@ services:
     mem_limit: 256m
     cpus: 0.50
 
+    cap_drop:
+      - ALL
+
     security_opt:
       - no-new-privileges:true
 

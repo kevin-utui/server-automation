@@ -43,3 +43,8 @@ reports/*
 .ruff_cache/
 .coverage
 htmlcov/
+
+# Local backup files — do not publish
+*.bak
+*.backup
+*~
