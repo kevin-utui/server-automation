@@ -27,6 +27,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install ansible-core==2.16.3
 
+      - name: Install required Ansible collections
+        run: ansible-galaxy collection install -r requirements.yml
+
       - name: Configure temporary Ansible settings
         run: |
           cat > "$RUNNER_TEMP/ansible-ci.cfg" <<EOF_CONFIG
