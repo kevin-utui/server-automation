@@ -63,7 +63,7 @@ and an Nginx reverse proxy.
 | 3 | Criação das máquinas virtuais | Complete |
 | 4 | Instalação/configuração do Ansible | Complete |
 | 5 | Desenvolvimento dos playbooks | Core implementation and documentation complete |
-| 6 | CI/CD GitHub Actions | GitHub repository created; remote connection and pipeline implementation pending |
+| 6 | CI/CD GitHub Actions | GitHub repository published; GitHub Actions syntax-validation workflow passed |
 | 7 | Segurança/performance | Lab controls implemented; production security findings remain documented and deferred |
 | 8 | Testes/validação | Core, idempotency, API resilience, logging and Redis persistence validation completed; historical integrated validation documented |
 | 9 | Documentação/entrega | Documentation substantially complete; final report review and handover pending |
@@ -252,11 +252,14 @@ approval before production deployment.
 
 ### 6.3 CI/CD
 
-A personal GitHub repository is available and currently empty. Local remote
-configuration, SSH authentication, pipeline configuration and pipeline
-execution remain to be completed. The planned initial pipeline will validate
-Ansible syntax and project structure only; automatic deployment to
-managed servers is outside its initial scope.
+The project is published in the GitHub repository. GitHub Actions runs the
+Ansible Validation workflow on the repository. The workflow installs the
+pinned Ansible collections from `requirements.yml` and validates the syntax
+of the project playbooks.
+
+The workflow completed successfully for commit `6b2357b` on 6 November 2026.
+The pipeline is limited to validation; it does not deploy to managed servers
+or access laboratory Vault credentials.
 
 ### 6.4 Production Readiness
 
@@ -282,9 +285,11 @@ final documentation review and formal handover. Production security
 findings remain documented and deferred where they require architecture,
 business requirements or explicit approval.
 
-**Assessment:** Core laboratory implementation and the documented
-acceptance tests are substantially complete. GitHub Actions and formal
-handover remain open. Production readiness is not approved.
+**Assessment:** Core laboratory implementation, documented acceptance
+tests and GitHub Actions syntax validation are complete. The remaining
+project closure activity is final documentation review and formal handover.
+Production readiness is not approved; production-specific security and
+architecture findings remain deferred pending requirements and authorization.
 
 ## 8. Supporting Documentation
 
